@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Join a team · Strainforge{% endblock %}
+{% block body %}
+<div class="authwrap"><div class="panel">
+{% if not info %}
+  <h1>Invite not valid</h1>
+  <p class="sub">This invite link has expired or was already used. Ask your team admin for a new one.</p>
+{% elif member %}
+  <h1>You're already in {{ info.workspace_name }}</h1>
+  <p class="sub"><a href="/history">Go to your history</a></p>
+{% else %}
+  <h1>Join {{ info.workspace_name }}</h1>
+  <p class="sub">You've been invited as {{ 'an admin' if info.role == 'admin' else 'an engineer' }}. You'll see and work on the team's saved calculations.</p>
+  {% if s.signed_in %}
+  <form method="post" action="/invite/{{ token }}" style="margin-top:16px"><button class="btn primary" type="submit">Join as {{ s.name }}</button></form>
+  {% else %}
+  <div class="row-actions" style="margin-top:16px">
+    <a class="btn primary" href="/signup?next={{ ('/invite/' ~ token)|urlencode }}">Create an account</a>
+    <a class="btn" href="/login?next={{ ('/invite/' ~ token)|urlencode }}">I have an account</a>
+  </div>
+  {% endif %}
+{% endif %}
+</div></div>
+{% endblock %}

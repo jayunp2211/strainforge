@@ -728,8 +728,12 @@ def count_view(page: str):
 
 # ------------------------------------------------------------------ owner dashboard
 
-def owner_stats(base_cents: int, seat_cents: int) -> dict:
-    """Everything the site owner sees on the dashboard, in one round of queries."""
+def owner_stats(base_cents: int, seat_cents: int, free_emails=()) -> dict:
+    """Everything the site owner sees on the dashboard.
+
+    Site owners (free_emails) never pay, so they and teams they own are left out of the revenue figures.
+    """
+    free = sorted({e.lower() for e in free_emails})
     ensure_schema()
     k = q1("""
       select
@@ -759,13 +763,15 @@ def owner_stats(base_cents: int, seat_cents: int) -> dict:
       from workspaces w join users u on u.id = w.owner_id
       where w.kind = 'team' order by seats desc, w.created_at desc limit 50""")
     # People who aren't in any team would buy the Personal plan.
-    solo = q1("""select count(*) as n from users u where not exists (
+    solo = q1("""select count(*) as n from users u where lower(u.email) <> all(%s) and not exists (
                    select 1 from memberships m join workspaces w on w.id = m.workspace_id
-                   where m.user_id = u.id and w.kind = 'team')""")["n"]
-    team_cents = sum(base_cents + max(0, t["seats"] - 1) * seat_cents for t in teams)
+                   where m.user_id = u.id and w.kind = 'team')""", (free,))["n"]
     for t in teams:
-        t["mrr"] = (base_cents + max(0, t["seats"] - 1) * seat_cents) / 100
-    seats = sum(t["seats"] for t in teams)
+        t["free"] = t["owner_email"].lower() in free
+        t["mrr"] = 0 if t["free"] else (base_cents + max(0, t["seats"] - 1) * seat_cents) / 100
+    paying = [t for t in teams if not t["free"]]
+    team_cents = sum(t["mrr"] for t in paying) * 100
+    seats = sum(t["seats"] for t in paying)
     mrr = (team_cents + solo * base_cents) / 100
     weeks = q("""
       with w as (select generate_series(date_trunc('week', now()) - interval '11 weeks', date_trunc('week', now()), interval '1 week') as wk)
@@ -793,6 +799,6 @@ def owner_stats(base_cents: int, seat_cents: int) -> dict:
       order by c.updated_at desc limit 10""")
     top_pages = q("select page, sum(n) as n from page_views where day > current_date - 30 group by page order by n desc limit 6")
     return {"k": k, "mrr": mrr, "arr": mrr * 12, "solo": solo, "seats": seats, "team_mrr": team_cents / 100,
-            "solo_mrr": solo * base_cents / 100, "teams": teams, "weeks": weeks, "days": days,
+            "solo_mrr": solo * base_cents / 100, "teams": teams, "paying_teams": len(paying), "weeks": weeks, "days": days,
             "by_process": by_process, "by_material": by_material, "people": people, "activity": activity,
             "top_pages": top_pages}

@@ -35,7 +35,7 @@ def dashboard(request: Request):
     s, redirect = _owner(request)
     if redirect:
         return redirect
-    st = db.owner_stats(config.PRICE_BASE_CENTS, config.PRICE_SEAT_CENTS)
+    st = db.owner_stats(config.PRICE_BASE_CENTS, config.PRICE_SEAT_CENTS, config.SITE_ADMIN_EMAILS)
     k = st["k"]
     growth = None
     if k["users_prev_30"]:

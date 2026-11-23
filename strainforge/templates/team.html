@@ -91,6 +91,10 @@
     </div>
     {% endif %}
     <div class="panel">
+      {% if s.is_site_admin %}
+      <div class="phead"><h2>Plan</h2><span class="chip">Site owner</span></div>
+      <p class="sub small" style="margin:0">You own Strainforge, so everything is included and you'll never be charged, in any workspace you own. <a href="/">Open your dashboard</a></p>
+      {% else %}
       <div class="phead"><h2>Plan</h2><span class="chip">Early access</span></div>
       {% if s.ws and s.ws.kind == 'team' %}
       <p class="sub small" style="margin:0">Team plan: $15/month including the admin, plus $10/month for each extra seat. With {{ seats }} {{ 'seat' if seats == 1 else 'seats' }} that would be <b>${{ '%.0f'|format(price) }}/month</b>.</p>
@@ -98,6 +102,7 @@
       <p class="sub small" style="margin:0">Personal plan: $15/month.</p>
       {% endif %}
       <p class="sub small">Billing isn't switched on yet, so every feature is free during early access. <a href="/pricing">See pricing</a></p>
+      {% endif %}
     </div>
     <div class="panel">
       <div class="phead"><h2>Start a team</h2></div>

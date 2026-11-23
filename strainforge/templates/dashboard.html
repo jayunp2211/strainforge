@@ -21,17 +21,17 @@
     <div class="big">{{ money(st.mrr) }}<small> / month projected</small></div>
     <div class="split">
       <div><b>{{ money(st.arr) }}</b><span>Projected per year</span></div>
-      <div><b>{{ money(st.team_mrr) }}</b><span>{{ k.teams }} team{{ '' if k.teams == 1 else 's' }} · {{ st.seats }} seat{{ '' if st.seats == 1 else 's' }}</span></div>
+      <div><b>{{ money(st.team_mrr) }}</b><span>{{ st.paying_teams }} team{{ '' if st.paying_teams == 1 else 's' }} · {{ st.seats }} seat{{ '' if st.seats == 1 else 's' }}</span></div>
       <div><b>{{ money(st.solo_mrr) }}</b><span>{{ st.solo }} personal account{{ '' if st.solo == 1 else 's' }}</span></div>
     </div>
-    <p class="note">{% if billing %}Collected through Stripe.{% else %}Collected so far: <b style="color:var(--bar-ink)">$0</b>. Projected is what today's accounts would pay at list price (Personal {{ money(price_base) }}, Team {{ money(price_base) }} + {{ money(price_seat) }} per extra seat) once billing is switched on.{% endif %}</p>
+    <p class="note">{% if billing %}Collected through Stripe.{% else %}Collected so far: <b style="color:var(--bar-ink)">$0</b>. Projected is what today's accounts would pay at list price (Personal {{ money(price_base) }}, Team {{ money(price_base) }} + {{ money(price_seat) }} per extra seat) once billing is switched on. Your own account{{ 's' if config.SITE_ADMIN_EMAILS|length > 1 else '' }} and teams you own are free and left out.{% endif %}</p>
   </section>
   <div class="stats">
     <div class="stat"><div class="label">Accounts</div><div class="value">{{ k.users }}</div>
       <div class="meta">+{{ k.users_30 }} in 30 days{% if growth is not none %} · <span class="delta {{ 'up' if growth >= 0 else 'down' }}">{{ '{:+.0f}'.format(growth) }}%</span>{% endif %}</div></div>
     <div class="stat"><div class="label">Active this week</div><div class="value">{{ k.active_7 }}</div><div class="meta">{{ k.active_30 }} in the last 30 days</div></div>
     <div class="stat"><div class="label">Teams</div><div class="value">{{ k.teams }}</div><div class="meta">{{ st.seats }} seat{{ '' if st.seats == 1 else 's' }} · {{ k.open_invites }} open invite{{ '' if k.open_invites == 1 else 's' }}</div></div>
-    <div class="stat"><div class="label">Avg revenue per account</div><div class="value">{{ money(st.mrr / ((k.teams + st.solo) or 1)) }}</div><div class="meta">per paying workspace, projected</div></div>
+    <div class="stat"><div class="label">Avg revenue per account</div><div class="value">{{ money(st.mrr / ((st.paying_teams + st.solo) or 1)) }}</div><div class="meta">per paying workspace, projected</div></div>
     <div class="stat"><div class="label">Calculations saved</div><div class="value">{{ k.calcs }}</div><div class="meta">+{{ k.calcs_30 }} in 30 days</div></div>
     <div class="stat"><div class="label">Edits</div><div class="value">{{ k.edits_30 }}</div><div class="meta">saved versions, 30 days</div></div>
     <div class="stat"><div class="label">Visits</div><div class="value">{{ k.views_30 }}</div><div class="meta">calculator and tool opens, 30 days</div></div>
@@ -74,7 +74,7 @@
     <thead><tr><th>Team</th><th>Owner</th><th style="text-align:right">Seats</th><th style="text-align:right">Projected / month</th><th style="text-align:right">Calculations</th><th>Last activity</th><th>Created</th></tr></thead>
     <tbody>{% for t in st.teams %}<tr>
       <td><b>{{ t.name }}</b></td><td>{{ t.owner_name }}<div class="small muted">{{ t.owner_email }}</div></td>
-      <td class="v">{{ t.seats }}</td><td class="v">{{ money(t.mrr) }}</td><td class="v">{{ t.calcs }}</td>
+      <td class="v">{{ t.seats }}</td><td class="v">{% if t.free %}<span class="badge">Site owner · free</span>{% else %}{{ money(t.mrr) }}{% endif %}</td><td class="v">{{ t.calcs }}</td>
       <td class="small">{{ t.last_active|when if t.last_active else '—' }}</td><td class="small">{{ t.created_at|when }}</td>
     </tr>{% endfor %}</tbody>
   </table></div>

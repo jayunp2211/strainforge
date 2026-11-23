@@ -46,14 +46,39 @@
 {% endif %}
 
 <div class="panel" id="std">
-  <div class="phead"><h2>Standard library</h2><span class="eyebrow">{{ defaults|length }} materials{% if hidden %} · {{ hidden|length }} hidden{% endif %}</span></div>
-  {% if s.is_admin %}<p class="sub small" style="margin:-4px 0 10px">Hide materials your shop never uses, so they drop out of the calculator's list.</p>{% endif %}
+  <div class="phead"><h2>Standard library</h2><span class="eyebrow">{{ defaults|length }} materials{% if hidden %} · {{ hidden|length }} hidden in {{ s.ws.name }}{% endif %}</span></div>
+  {% if s.is_site_admin %}
+  <p class="notice small" style="margin:0 0 12px">You're the site owner: changes to this list apply to <b>every</b> account. Calculations saved from now on keep the material values they were saved with.</p>
+  <form method="post" action="/library/add" class="libadd">
+    <input class="tf" name="name" maxlength="60" required placeholder="New material name" aria-label="Name">
+    <input class="tf" name="c" inputmode="decimal" required placeholder="C (N/mm²)" aria-label="Material constant C">
+    <input class="tf" name="n" inputmode="decimal" required placeholder="n" aria-label="Work hardening n">
+    <input class="tf" name="rm" inputmode="decimal" placeholder="Rm (optional)" aria-label="Tensile strength Rm">
+    <button class="btn primary" type="submit">Add to library</button>
+  </form>
+  {% elif s.is_admin %}<p class="sub small" style="margin:-4px 0 10px">Hide materials your shop never uses, so they drop out of the calculator's list.</p>{% endif %}
   <div class="tblwrap"><table>
-    <thead><tr><th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th>{% if s.is_admin %}<th></th>{% endif %}</tr></thead>
+    <thead><tr><th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th>{% if s.is_admin or s.is_site_admin %}<th></th>{% endif %}</tr></thead>
     <tbody>
     {% for m in defaults %}
+    {% if s.is_site_admin and edit and m.id == edit %}
+    <tr class="editing"><td colspan="5">
+      <form method="post" action="/library/{{ m.id }}/edit" class="libadd" id="edit-{{ m.id }}">
+        <input class="tf" name="name" maxlength="60" required value="{{ m.name }}" aria-label="Name">
+        <input class="tf" name="c" inputmode="decimal" required value="{{ m.C }}" aria-label="Material constant C">
+        <input class="tf" name="n" inputmode="decimal" required value="{{ m.n }}" aria-label="Work hardening n">
+        <input class="tf" name="rm" inputmode="decimal" value="{{ '%.2f'|format(m.Rm) if m.Rm is not none else '' }}" placeholder="Rm (auto)" aria-label="Tensile strength Rm">
+        <span style="white-space:nowrap"><button class="btn primary" type="submit">Save</button> <a class="btn" href="/materials#std">Cancel</a></span>
+      </form>
+    </td></tr>
+    {% else %}
     <tr {% if m.name in hidden %}style="opacity:.5"{% endif %}><td>{{ m.name }}{% if m.name in hidden %} <span class="muted small">hidden</span>{% endif %}</td><td class="v">{{ m.C|num(0) }}</td><td class="v">{{ m.n|num(3) }}</td><td class="v">{{ m.Rm|num(1) if m.Rm is not none else '—' }}</td>
-      {% if s.is_admin %}<td style="text-align:right"><form method="post" action="/materials/visibility" class="inline"><input type="hidden" name="name" value="{{ m.name }}"><input type="hidden" name="hide" value="{{ 0 if m.name in hidden else 1 }}"><button class="btn sm" type="submit">{{ 'Show' if m.name in hidden else 'Hide' }}</button></form></td>{% endif %}</tr>
+      {% if s.is_admin or s.is_site_admin %}<td style="text-align:right;white-space:nowrap">
+        {% if s.is_admin %}<form method="post" action="/materials/visibility" class="inline"><input type="hidden" name="name" value="{{ m.name }}"><input type="hidden" name="hide" value="{{ 0 if m.name in hidden else 1 }}"><button class="btn sm" type="submit">{{ 'Show' if m.name in hidden else 'Hide' }}</button></form>{% endif %}
+        {% if s.is_site_admin and m.id %}<a class="btn sm" href="/materials?edit={{ m.id }}#std">Edit</a>
+        <form method="post" action="/library/{{ m.id }}/delete" class="inline" onsubmit="return confirm('Remove {{ m.name }} from the standard library for every account?')"><button class="btn sm danger" type="submit">Remove</button></form>{% endif %}
+      </td>{% endif %}</tr>
+    {% endif %}
     {% endfor %}
     </tbody>
   </table></div>

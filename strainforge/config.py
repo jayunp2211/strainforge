@@ -11,3 +11,7 @@ COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
 PRICE_BASE_CENTS = 1500      # personal plan, and team base incl. the admin seat
 PRICE_SEAT_CENTS = 1000      # each additional team seat
 BILLING_ENABLED = False
+
+# Site owners: may edit the standard material library everyone sees.
+# Comma-separated account emails, set in Vercel → Settings → Environment Variables.
+SITE_ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("SITE_ADMIN_EMAILS", "").split(",") if e.strip()}

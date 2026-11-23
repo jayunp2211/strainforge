@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Team · Strainforge{% endblock %}
+{% block body %}
+<div class="pagehead">
+  <div>
+    <h1>{{ s.ws.name if s.ws else 'Team' }}</h1>
+    <p class="sub">{% if s.ws and s.ws.kind == 'team' %}Team workspace. Everyone here sees and can edit the team's calculations. Admins manage people and materials.{% else %}Your personal workspace. Only you can see calculations saved here.{% endif %}</p>
+  </div>
+</div>
+
+{% if new_link %}
+<div class="panel" style="margin-bottom:18px">
+  <div class="phead"><h2>Invite link ready</h2><span class="eyebrow">Valid for 14 days, one person</span></div>
+  <p class="sub small" style="margin:0">Send this link to the engineer you want to add. They create an account (or sign in) and join {{ s.ws.name }}.</p>
+  <div class="linkbox"><input class="tf" readonly value="{{ base }}/invite/{{ new_link }}" id="newLink"><button class="btn primary" type="button" data-copy="newLink">Copy</button></div>
+</div>
+{% endif %}
+{% if reset_link %}
+<div class="panel" style="margin-bottom:18px">
+  <div class="phead"><h2>Password reset link{% if reset_for %} for {{ reset_for }}{% endif %}</h2><span class="eyebrow">Valid for 24 hours, one use</span></div>
+  <p class="sub small" style="margin:0">Send it to them privately. Opening it lets them choose a new password.</p>
+  <div class="linkbox"><input class="tf" readonly value="{{ base }}/reset/{{ reset_link }}" id="resetLink"><button class="btn primary" type="button" data-copy="resetLink">Copy</button></div>
+</div>
+{% endif %}
+
+<div class="grid2">
+  <div class="stack">
+    <div class="panel">
+      <div class="phead"><h2>Members</h2><span class="eyebrow">{{ seats }} {{ 'person' if seats == 1 else 'people' }}</span></div>
+      <div class="tblwrap">
+      <table>
+        <thead><tr><th>Name</th><th>Role</th><th></th></tr></thead>
+        <tbody>
+        {% for m in members %}
+        <tr>
+          <td><b>{{ m.name or m.email }}</b>{% if m.me %} <span class="muted small">(you)</span>{% endif %}<div class="small muted">{{ m.email }}</div></td>
+          <td>
+            {% if s.is_admin and not m.owner and s.ws.kind == 'team' %}
+            <form method="post" action="/team/member/{{ m.user_id }}/role" class="inline">
+              <select name="role" class="tf" style="width:auto;padding:5px 8px" onchange="this.form.submit()" aria-label="Role for {{ m.name or m.email }}">
+                <option value="engineer" {% if m.role == 'engineer' %}selected{% endif %}>Engineer</option>
+                <option value="admin" {% if m.role == 'admin' %}selected{% endif %}>Admin</option>
+              </select>
+            </form>
+            {% else %}<span class="role">{{ 'Owner' if m.owner and s.ws.kind == 'team' else m.role|capitalize }}</span>{% endif %}
+          </td>
+          <td style="text-align:right;white-space:nowrap">
+            {% if s.is_admin and not m.me %}
+            <form method="post" action="/team/member/{{ m.user_id }}/reset" class="inline"><button class="btn sm" type="submit">Reset link</button></form>
+            {% endif %}
+            {% if s.ws.kind == 'team' and not m.owner and (s.is_admin or m.me) %}
+            <form method="post" action="/team/member/{{ m.user_id }}/remove" class="inline" onsubmit="return confirm('{{ 'Leave this team?' if m.me else 'Remove this person from the team?' }}')"><button class="btn sm danger" type="submit">{{ 'Leave' if m.me else 'Remove' }}</button></form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    {% if s.is_admin and s.ws.kind == 'team' %}
+    <div class="panel">
+      <div class="phead"><h2>Invite an engineer</h2></div>
+      <form method="post" action="/team/invite" class="form-grid">
+        <label>Their email <span class="hint">Optional, just for your reference</span><input type="email" name="email" maxlength="200"></label>
+        <label>Role
+          <select name="role"><option value="engineer">Engineer: saves and edits calculations</option><option value="admin">Admin: also manages people and materials</option></select>
+        </label>
+        <button class="btn primary" type="submit" style="justify-self:start">Create invite link</button>
+      </form>
+      {% if invites %}
+      <h3 class="eyebrow" style="margin:18px 0 6px">Open invites</h3>
+      <div class="versions">
+        {% for i in invites %}
+        <div class="ver"><span>{{ i.email or 'Invite link' }} · {{ i.role }} <span class="muted small">until {{ i.expires_at|when }}</span></span>
+          <span style="white-space:nowrap"><button class="btn sm" type="button" data-copytext="{{ base }}/invite/{{ i.token }}">Copy link</button>
+          <form method="post" action="/team/invite/{{ i.id }}/revoke" class="inline"><button class="btn sm danger" type="submit">Revoke</button></form></span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    {% if s.is_admin %}
+    <div class="panel">
+      <div class="phead"><h2>Workspace name</h2></div>
+      <form method="post" action="/team/rename" class="savebar"><div class="row"><input class="tf" name="name" value="{{ s.ws.name }}" maxlength="80" aria-label="Workspace name"><button class="btn" type="submit">Rename</button></div></form>
+    </div>
+    {% endif %}
+    <div class="panel">
+      <div class="phead"><h2>Plan</h2><span class="chip">Early access</span></div>
+      {% if s.ws and s.ws.kind == 'team' %}
+      <p class="sub small" style="margin:0">Team plan: $15/month including the admin, plus $10/month for each extra seat. With {{ seats }} {{ 'seat' if seats == 1 else 'seats' }} that would be <b>${{ '%.0f'|format(price) }}/month</b>.</p>
+      {% else %}
+      <p class="sub small" style="margin:0">Personal plan: $15/month.</p>
+      {% endif %}
+      <p class="sub small">Billing isn't switched on yet, so every feature is free during early access. <a href="/pricing">See pricing</a></p>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Start a team</h2></div>
+      <p class="sub small" style="margin:0 0 10px">A team workspace shares calculations and materials with your colleagues. You become its admin.</p>
+      <form method="post" action="/team/create" class="savebar"><div class="row"><input class="tf" name="name" maxlength="80" placeholder="Company or team name" required aria-label="Team name"><button class="btn primary" type="submit">Create team</button></div></form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function copy(text, btn) { navigator.clipboard.writeText(text).then(() => { const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = t, 1500); }); }
+document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => { const i = document.getElementById(b.dataset.copy); i.select(); copy(i.value, b); }));
+document.querySelectorAll('[data-copytext]').forEach(b => b.addEventListener('click', () => copy(b.dataset.copytext, b)));
+</script>
+{% endblock %}

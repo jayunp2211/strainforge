@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Pricing · Strainforge{% endblock %}
+{% block body %}
+<div class="pagehead"><div><h1>Pricing</h1><p class="sub">The calculator is free. Accounts add history, teams and your own materials.</p></div></div>
+<div class="notice"><b>Early access:</b> billing isn't switched on yet, so every paid feature is free for now. We'll let you know before anything is charged.</div>
+<div class="plans">
+  <div class="panel plan">
+    <h2>Calculator</h2>
+    <div class="price">Free</div>
+    <ul>
+      <li>All 10 processes and 16 product shapes</li>
+      <li>Load, energy, deformation grade and tooling checks</li>
+      <li>Sensitivity chart and every intermediate step</li>
+      <li>Standard material library</li>
+    </ul>
+    <a class="btn" href="/" style="margin-top:auto;justify-content:center">Open the calculator</a>
+  </div>
+  <div class="panel plan">
+    <h2>Personal</h2>
+    <div class="price">$15 <small>/ month</small></div>
+    <ul>
+      <li>Everything in the free calculator</li>
+      <li>Saved calculation history with search</li>
+      <li>Version history on every calculation</li>
+      <li>Add and remove your own materials</li>
+    </ul>
+    <a class="btn primary" href="/signup" style="margin-top:auto;justify-content:center">Start free early access</a>
+  </div>
+  <div class="panel plan feature">
+    <h2>Team</h2>
+    <div class="price">$15 <small>/ month + $10 per extra seat</small></div>
+    <ul>
+      <li>Everything in Personal</li>
+      <li>Shared team history: everyone sees every calculation</li>
+      <li>Several engineers can work on the same calculation, with conflict warnings and versions</li>
+      <li>Admin role to manage people and the team's material list</li>
+    </ul>
+    <p class="small muted" style="margin:0">Example: a team of 4 is $15 + 3 × $10 = $45 per month.</p>
+    <a class="btn primary" href="/signup" style="margin-top:auto;justify-content:center">Create a team</a>
+  </div>
+</div>
+{% endblock %}

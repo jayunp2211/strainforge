@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Materials · Strainforge{% endblock %}
+{% block body %}
+<div class="pagehead">
+  <div>
+    <h1>Materials</h1>
+    <p class="sub">The flow curve kf = C·φ<sup>n</sup> for each material. {% if s.ws %}Changes here apply to everyone in <b>{{ s.ws.name }}</b>.{% else %}Sign in to add your own materials.{% endif %}</p>
+  </div>
+</div>
+
+{% if s.signed_in and s.ws %}
+<div class="grid2" style="margin-bottom:18px">
+  <div class="panel">
+    <div class="phead"><h2>Custom materials</h2><span class="eyebrow">{{ custom|length }} added</span></div>
+    {% if custom %}
+    <div class="tblwrap"><table>
+      <thead><tr><th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th><th></th></tr></thead>
+      <tbody>
+      {% for m in custom %}
+      <tr><td><b>{{ m.name }}</b></td><td class="v">{{ m.c|num(0) }}</td><td class="v">{{ m.n|num(3) }}</td><td class="v">{{ m.rm|num(1) if m.rm is not none else '—' }}</td>
+        <td style="text-align:right">{% if s.is_admin %}<form method="post" action="/materials/{{ m.id }}/delete" class="inline" onsubmit="return confirm('Remove {{ m.name }}? Saved calculations keep their values.')"><button class="btn sm danger" type="submit">Remove</button></form>{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p class="muted small" style="margin:0">None yet.{% if s.is_admin %} Add one with the form.{% else %} Your admin can add materials.{% endif %}</p>
+    {% endif %}
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>Add a material</h2></div>
+    {% if s.is_admin %}
+    <form method="post" action="/materials/add" class="form-grid">
+      <label>Name<input name="name" maxlength="60" required placeholder="e.g. 23MnB4 supplier X"></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label>Material constant C <span class="hint">N/mm²</span><input name="c" inputmode="decimal" required placeholder="790"></label>
+        <label>Work hardening n <span class="hint">0 to 1</span><input name="n" inputmode="decimal" required placeholder="0.18"></label>
+      </div>
+      <label>Tensile strength Rm <span class="hint">N/mm², optional. Left empty, it's computed as C·(n/e)<sup>n</sup></span><input name="rm" inputmode="decimal"></label>
+      <button class="btn primary" type="submit" style="justify-self:start">Add material</button>
+    </form>
+    {% else %}
+    <p class="muted small" style="margin:0">Only admins of {{ s.ws.name }} can add or remove materials.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="panel" id="std">
+  <div class="phead"><h2>Standard library</h2><span class="eyebrow">{{ defaults|length }} materials{% if hidden %} · {{ hidden|length }} hidden{% endif %}</span></div>
+  {% if s.is_admin %}<p class="sub small" style="margin:-4px 0 10px">Hide materials your shop never uses, so they drop out of the calculator's list.</p>{% endif %}
+  <div class="tblwrap"><table>
+    <thead><tr><th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th>{% if s.is_admin %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for m in defaults %}
+    <tr {% if m.name in hidden %}style="opacity:.5"{% endif %}><td>{{ m.name }}{% if m.name in hidden %} <span class="muted small">hidden</span>{% endif %}</td><td class="v">{{ m.C|num(0) }}</td><td class="v">{{ m.n|num(3) }}</td><td class="v">{{ m.Rm|num(1) if m.Rm is not none else '—' }}</td>
+      {% if s.is_admin %}<td style="text-align:right"><form method="post" action="/materials/visibility" class="inline"><input type="hidden" name="name" value="{{ m.name }}"><input type="hidden" name="hide" value="{{ 0 if m.name in hidden else 1 }}"><button class="btn sm" type="submit">{{ 'Show' if m.name in hidden else 'Hide' }}</button></form></td>{% endif %}</tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

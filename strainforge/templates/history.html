@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}History · Strainforge{% endblock %}
+{% block body %}
+<div class="pagehead">
+  <div>
+    <h1>{{ s.ws.name if s.ws else 'History' }}</h1>
+    <p class="sub">{% if s.ws and s.ws.kind == 'team' %}Every calculation saved by your team. Anyone in the team can open and update them; each save keeps a version.{% else %}Your saved calculations. Open one to keep working on it.{% endif %}</p>
+  </div>
+  <a class="btn primary" href="/">New calculation</a>
+</div>
+<div class="panel">
+  <form class="filters" method="get" action="/history">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by name, material or notes" aria-label="Search">
+    <select name="process" aria-label="Process" onchange="this.form.submit()">
+      <option value="0">All processes</option>
+      {% for p in PROCESSES %}<option value="{{ loop.index }}" {% if process == loop.index %}selected{% endif %}>{{ p }}</option>{% endfor %}
+    </select>
+    {% if s.ws and s.ws.kind == 'team' %}
+    <label class="small"><input type="checkbox" name="mine" value="1" {% if mine %}checked{% endif %} onchange="this.form.submit()"> Only mine</label>
+    {% endif %}
+    <button class="btn" type="submit">Search</button>
+  </form>
+  {% if rows %}
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Name</th><th>Process</th><th>Material</th><th style="text-align:right">Load F</th><th style="text-align:right">Energy W</th><th>Last change</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr id="row-{{ r.id }}">
+        <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="/?calc={{ r.id }}">{{ r.title }}</a>{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
+        <td>{{ PROCESSES[r.process - 1] }}<div class="small muted">{{ SHAPE_NAMES[r.shape] }}</div></td>
+        <td>{{ r.material }}</td>
+        <td class="v">{{ r.summary.F|num(1) }} <span class="muted">kN</span></td>
+        <td class="v">{% if r.summary.W is not none %}{{ r.summary.W|num(3) }} <span class="muted">kJ</span>{% else %}—{% endif %}</td>
+        <td class="small">{{ r.updated_at|when }}<div class="muted">{{ r.updated_by_name or r.created_by_name }}</div></td>
+        <td>{% if s.is_admin or (r.created_by|string) == s.user_id %}<button class="btn sm danger" type="button" data-del="{{ r.id }}" data-title="{{ r.title }}">Delete</button>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    {% if q or process or mine %}Nothing matches that search.{% else %}No saved calculations yet. Open the <a href="/">calculator</a>, enter your dimensions and press <b>Save</b>.{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+  if (!confirm('Delete “' + b.dataset.title + '” and its version history? This cannot be undone.')) return;
+  b.disabled = true;
+  const r = await fetch('/api/calculations/' + b.dataset.del, { method: 'DELETE' });
+  if (r.ok) document.getElementById('row-' + b.dataset.del).remove();
+  else { b.disabled = false; alert((await r.json()).error || 'Could not delete'); }
+}));
+</script>
+{% endblock %}

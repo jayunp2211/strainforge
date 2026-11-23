@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{% if saved %}{{ saved.title }} · {% endif %}Strainforge{% endblock %}
+{% block head %}<style>{{ svg_css|safe }}</style>{% endblock %}
+{% block body %}
+{{ svg_defs|safe }}
+<nav class="rail" id="rail" aria-label="Process">
+  {% for name in PROCESSES %}
+  <button class="proc" type="button" data-p="{{ loop.index }}" aria-pressed="false" title="{{ name }}">
+    <span class="thumb">{{ proc_draw[loop.index]|safe }}</span><span>{{ name }}</span>
+  </button>
+  {% endfor %}
+</nav>
+
+<div class="bench">
+  <div class="stack">
+    <div class="panel" id="savePanel">
+      {% if s.signed_in and s.ws %}
+      <div class="savebar">
+        <div class="phead" style="margin-bottom:0"><h2 id="saveHead">Save to {{ s.ws.name }}</h2><span class="eyebrow" id="saveState"></span></div>
+        <div class="row">
+          <input class="tf" id="calcTitle" maxlength="120" placeholder="Name this calculation, e.g. M8 flange bolt, station 2" aria-label="Calculation name">
+          <button class="btn primary" type="button" id="btnSave">Save</button>
+          <button class="btn" type="button" id="btnSaveNew" hidden>Save as copy</button>
+          <a class="btn" href="/" id="btnNew" hidden>New</a>
+        </div>
+        <details class="drawer" id="notesBox"><summary>Notes</summary><textarea class="tf" id="calcNotes" maxlength="4000" placeholder="Part number, press, station, assumptions…" style="margin-top:8px"></textarea></details>
+        <div class="savemeta" id="saveMeta"></div>
+        <div class="conflict" id="conflict" hidden></div>
+        <details class="drawer" id="versionsBox" hidden><summary>Version history</summary><div class="versions" id="versions" style="margin-top:8px"></div></details>
+      </div>
+      {% else %}
+      <div class="phead" style="margin-bottom:6px"><h2>Keep your calculations</h2></div>
+      <p class="sub small" style="margin:0 0 10px">The calculator is free to use. Create an account to save calculations to your history and share them with your team.</p>
+      <div class="row-actions" style="margin-top:0"><a class="btn primary" href="/signup">Create account</a><a class="btn" href="/login">Sign in</a></div>
+      {% endif %}
+    </div>
+    <div class="panel">
+      <div class="phead"><h2 id="procTitle">Process</h2><span class="chip ex" id="exChip" hidden>Example values</span></div>
+      <p class="sub small" id="procNote" style="margin:-6px 0 8px"></p>
+      <div class="field">
+        <label for="shapeSel">Product shape</label>
+        <div class="ctl"><select id="shapeSel"></select></div>
+      </div>
+      <div class="field">
+        <label for="matSel">Material</label>
+        <div class="ctl"><select id="matSel"></select></div>
+        <div class="hint">C, n and Rm from the material library{% if s.signed_in %} · <a href="/materials">Manage</a>{% endif %}</div>
+      </div>
+      <div class="field"><span class="lbl">Yield stress kf</span><div class="ro" id="roKf">—</div></div>
+      <div class="field"><span class="lbl">Work hardening n</span><div class="ro" id="roN">—</div></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Variables</h2><span class="eyebrow" id="varCount"></span></div>
+      <div id="autoVals"></div>
+      <form id="vars" autocomplete="off" onsubmit="return false"></form>
+      <div class="row-actions">
+        <button class="btn" type="button" id="btnExample">Load example values</button>
+        <button class="btn" type="button" id="btnClear">Clear inputs</button>
+      </div>
+    </div>
+    <div class="figs" id="figs"></div>
+  </div>
+
+  <div class="stack">
+    <div class="panel" id="resPanel">
+      <div class="phead"><h2>Results</h2><span class="eyebrow" id="resSub"></span></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="banner" id="banner"></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Process checks</h2><span class="eyebrow">Tooling limits</span></div>
+      <div class="checks" id="checks"></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Load sensitivity</h2><span class="eyebrow">Load F while one input moves ±30 %</span></div>
+      <div class="chartctl"><label for="sensVar" class="eyebrow">Vary</label><select id="sensVar"></select></div>
+      <div id="chart"></div>
+    </div>
+  </div>
+</div>
+
+<section class="block cols2">
+  <div class="panel">
+    <div class="phead"><h2>Calculation steps</h2><span class="eyebrow">Every intermediate value</span></div>
+    <div class="tblwrap"><table id="detail"><thead><tr><th>Quantity</th><th style="text-align:right">Value</th><th>Unit</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>Equations</h2><span class="eyebrow">Method used</span></div>
+    <ul class="eq" id="eqs"></ul>
+  </div>
+</section>
+
+<section class="block panel">
+  <div class="phead"><h2>Material library</h2><span class="eyebrow" id="matCount"></span></div>
+  <div class="mat-tools"><input id="matSearch" type="search" placeholder="Filter materials, e.g. 16MnCr5 or Cu" aria-label="Filter materials"></div>
+  <div class="tblwrap"><table id="matTable"><thead><tr><th>Material</th><th style="text-align:right">Material constant C</th><th style="text-align:right">Work hardening n</th><th style="text-align:right">Tensile strength Rm</th></tr></thead><tbody></tbody></table></div>
+  <p class="sub" style="font-size:.82rem">Select a row to use that material. Rm in the table equals C·(n/e)<sup>n</sup>; the Ludwik curve kf = C·φ<sup>n</sup> is used everywhere else.</p>
+</section>
+
+<section class="block panel">
+  <div class="phead"><h2>Method notes</h2><span class="eyebrow">How the calculations are set up</span></div>
+  <ol class="notes">
+    <li><b>Total strain in the flow stress.</b> <span class="m">Upsetting uses kf1 = C·(φ + φ0)<sup>n</sup>, so the pre-strain φ0 is included. Example: C = 777 N/mm², n = 0.164, φ0 = 0.05, d0 = 14, d1 = 24, h1 = 2.2, µ = 0.15 gives kf1 = 792 N/mm², F = 554.1 kN and W = 0.987 kJ.</span></li>
+    <li><b>Specific deformation work counts φ0 once.</b> <span class="m">a = C·[(φ+φ0)<sup>n+1</sup> − φ0<sup>n+1</sup>]/(n+1) for every process.</span></li>
+    <li><b>Cracking limit for the head.</b> <span class="m">Surface strain ξ is limited to 75 % for flat heads and 85 % for spherical heads.</span></li>
+    <li><b>Deformation grade shown for every upsetting step.</b> <span class="m">Closed Upset and Pre-upsetting form report φ itself.</span></li>
+    <li><b>Trap Extrusion pre-strain.</b> <span class="m">Uses the φ0 you enter, or 0.05 when the field is empty. Trimming evaluates kf at φ = 0.8.</span></li>
+    <li><b>Separate manual fields.</b> <span class="m">The manual tensile strength (Cut off) and the K1 factor (Backward Extrusion) have their own fields, so the automatic values stay visible.</span></li>
+  </ol>
+</section>
+<script type="application/json" id="boot">{{ boot|safe }}</script>
+<script type="application/json" id="shapeDraw">{{ shape_draw|tojson }}</script>
+{% endblock %}
+{% block scripts %}<script src="/static/calc.js?v=3"></script>{% endblock %}

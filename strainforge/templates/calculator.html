@@ -21,7 +21,7 @@
           <input class="tf" id="calcTitle" maxlength="120" placeholder="Name this calculation, e.g. M8 flange bolt, station 2" aria-label="Calculation name">
           <button class="btn primary" type="button" id="btnSave">Save</button>
           <button class="btn" type="button" id="btnSaveNew" hidden>Save as copy</button>
-          <a class="btn" href="/" id="btnNew" hidden>New</a>
+          <a class="btn" href="/calculator" id="btnNew" hidden>New</a>
         </div>
         <details class="drawer" id="notesBox"><summary>Notes</summary><textarea class="tf" id="calcNotes" maxlength="4000" placeholder="Part number, press, station, assumptions…" style="margin-top:8px"></textarea></details>
         <div class="savemeta" id="saveMeta"></div>
@@ -111,4 +111,4 @@
 <script type="application/json" id="boot">{{ boot|safe }}</script>
 <script type="application/json" id="shapeDraw">{{ shape_draw|tojson }}</script>
 {% endblock %}
-{% block scripts %}<script src="/static/calc.js?v=4"></script>{% endblock %}
+{% block scripts %}<script src="/static/calc.js?v=5"></script>{% endblock %}

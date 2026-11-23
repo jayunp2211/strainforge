@@ -245,7 +245,7 @@ async function save(asNew, force) {
     if (!r.ok) throw new Error(out.error || 'Could not save');
     adopt(out, false);
     $('conflict').hidden = true;
-    history.replaceState(null, '', '/?calc=' + out.id);
+    history.replaceState(null, '', '/calculator?calc=' + out.id);
     toast(update ? 'Changes saved' : 'Saved to ' + BOOT.workspace.name);
   } catch (e) { toast(e.message); }
   finally { $('btnSave').disabled = false; }

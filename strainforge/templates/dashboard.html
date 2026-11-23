@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Strainforge{% endblock %}
+{% macro money(v) %}${{ '{:,.0f}'.format(v) }}{% endmacro %}
+{% block body %}
+<div class="pagehead">
+  <div>
+    <span class="eyebrow">Owner dashboard</span>
+    <h1>Hello, {{ s.name }}</h1>
+    <p class="sub">How Strainforge is doing: revenue, accounts, teams and what people calculate. Only you can see this page.</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="/calculator">Open calculator</a>
+    <a class="btn" href="/admin/export/users.csv">Export accounts (CSV)</a>
+    <a class="btn primary" href="/admin/tools/new">New calculator</a>
+  </div>
+</div>
+
+<div class="dash-hero">
+  <section class="panel money" aria-labelledby="mrrHead">
+    <div class="phead" style="margin-bottom:0"><h2 id="mrrHead">Monthly recurring revenue</h2>{% if not billing %}<span class="tag">Billing off · early access</span>{% endif %}</div>
+    <div class="big">{{ money(st.mrr) }}<small> / month projected</small></div>
+    <div class="split">
+      <div><b>{{ money(st.arr) }}</b><span>Projected per year</span></div>
+      <div><b>{{ money(st.team_mrr) }}</b><span>{{ k.teams }} team{{ '' if k.teams == 1 else 's' }} · {{ st.seats }} seat{{ '' if st.seats == 1 else 's' }}</span></div>
+      <div><b>{{ money(st.solo_mrr) }}</b><span>{{ st.solo }} personal account{{ '' if st.solo == 1 else 's' }}</span></div>
+    </div>
+    <p class="note">{% if billing %}Collected through Stripe.{% else %}Collected so far: <b style="color:var(--bar-ink)">$0</b>. Projected is what today's accounts would pay at list price (Personal {{ money(price_base) }}, Team {{ money(price_base) }} + {{ money(price_seat) }} per extra seat) once billing is switched on.{% endif %}</p>
+  </section>
+  <div class="stats">
+    <div class="stat"><div class="label">Accounts</div><div class="value">{{ k.users }}</div>
+      <div class="meta">+{{ k.users_30 }} in 30 days{% if growth is not none %} · <span class="delta {{ 'up' if growth >= 0 else 'down' }}">{{ '{:+.0f}'.format(growth) }}%</span>{% endif %}</div></div>
+    <div class="stat"><div class="label">Active this week</div><div class="value">{{ k.active_7 }}</div><div class="meta">{{ k.active_30 }} in the last 30 days</div></div>
+    <div class="stat"><div class="label">Teams</div><div class="value">{{ k.teams }}</div><div class="meta">{{ st.seats }} seat{{ '' if st.seats == 1 else 's' }} · {{ k.open_invites }} open invite{{ '' if k.open_invites == 1 else 's' }}</div></div>
+    <div class="stat"><div class="label">Avg revenue per account</div><div class="value">{{ money(st.mrr / ((k.teams + st.solo) or 1)) }}</div><div class="meta">per paying workspace, projected</div></div>
+    <div class="stat"><div class="label">Calculations saved</div><div class="value">{{ k.calcs }}</div><div class="meta">+{{ k.calcs_30 }} in 30 days</div></div>
+    <div class="stat"><div class="label">Edits</div><div class="value">{{ k.edits_30 }}</div><div class="meta">saved versions, 30 days</div></div>
+    <div class="stat"><div class="label">Visits</div><div class="value">{{ k.views_30 }}</div><div class="meta">calculator and tool opens, 30 days</div></div>
+    <div class="stat"><div class="label">Calculators</div><div class="value">{{ k.tools_live }}<span class="muted" style="font-size:1rem"> / {{ k.tools }}</span></div><div class="meta">live / built · {{ k.library_materials }} materials</div></div>
+  </div>
+</div>
+
+<div class="dash-grid">
+  <section class="panel"><div class="phead"><h2>New accounts per week</h2><span class="eyebrow">Last 12 weeks</span></div><div class="chartbox" data-chart="signups"></div></section>
+  <section class="panel"><div class="phead"><h2>Calculations saved per week</h2><span class="eyebrow">Last 12 weeks</span></div><div class="chartbox" data-chart="calcs"></div></section>
+  <section class="panel wide"><div class="phead"><h2>Visits per day</h2><span class="eyebrow">Calculator and tool opens, last 30 days</span></div><div class="chartbox" data-chart="views"></div></section>
+  <section class="panel">
+    <div class="phead"><h2>What people calculate</h2><span class="eyebrow">Saved calculations by process</span></div>
+    {% if by_process %}<div class="hbars">{% for r in by_process %}<div class="hbar"><span class="name" title="{{ r.name }}">{{ r.name }}</span><span class="track"><span class="fill" style="display:block;width:{{ '%.1f'|format(r.pct) }}%"></span></span><span class="n">{{ r.n }}</span></div>{% endfor %}</div>
+    {% else %}<p class="muted small" style="margin:0">Nothing saved yet.</p>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="phead"><h2>Most used materials</h2><span class="eyebrow">Top 8</span></div>
+    {% set mtop = (st.by_material[0].n if st.by_material else 1) %}
+    {% if st.by_material %}<div class="hbars">{% for r in st.by_material %}<div class="hbar"><span class="name" title="{{ r.material }}">{{ r.material }}</span><span class="track"><span class="fill" style="display:block;width:{{ '%.1f'|format(r.n / mtop * 100) }}%"></span></span><span class="n">{{ r.n }}</span></div>{% endfor %}</div>
+    {% else %}<p class="muted small" style="margin:0">Nothing saved yet.</p>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="phead"><h2>Latest activity</h2><span class="eyebrow">Saved calculations</span></div>
+    {% if st.activity %}<ul class="feed">{% for a in st.activity %}<li><span><b>{{ a.title }}</b><div class="who">{{ a.who or 'Someone' }} · {{ a.workspace }}{% if a.kind == 'team' %} <span class="badge team">team</span>{% endif %}</div></span><span class="small muted">{{ a.updated_at|when }}</span></li>{% endfor %}</ul>
+    {% else %}<p class="muted small" style="margin:0">No saves yet.</p>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="phead"><h2>Most opened pages</h2><span class="eyebrow">Last 30 days</span></div>
+    {% set ptop = (st.top_pages[0].n if st.top_pages else 1) %}
+    {% if st.top_pages %}<div class="hbars">{% for r in st.top_pages %}<div class="hbar"><span class="name">{{ 'Main calculator' if r.page == 'calculator' else r.page.replace('tool:', 'Tool: ') }}</span><span class="track"><span class="fill" style="display:block;width:{{ '%.1f'|format(r.n / ptop * 100) }}%"></span></span><span class="n">{{ r.n }}</span></div>{% endfor %}</div>
+    {% else %}<p class="muted small" style="margin:0">Visits are counted from today on.</p>{% endif %}
+  </section>
+</div>
+
+<section class="panel" style="margin-bottom:18px">
+  <div class="phead"><h2>Teams</h2><span class="eyebrow">{{ k.teams }} team{{ '' if k.teams == 1 else 's' }}, largest first</span></div>
+  {% if st.teams %}
+  <div class="tblwrap"><table>
+    <thead><tr><th>Team</th><th>Owner</th><th style="text-align:right">Seats</th><th style="text-align:right">Projected / month</th><th style="text-align:right">Calculations</th><th>Last activity</th><th>Created</th></tr></thead>
+    <tbody>{% for t in st.teams %}<tr>
+      <td><b>{{ t.name }}</b></td><td>{{ t.owner_name }}<div class="small muted">{{ t.owner_email }}</div></td>
+      <td class="v">{{ t.seats }}</td><td class="v">{{ money(t.mrr) }}</td><td class="v">{{ t.calcs }}</td>
+      <td class="small">{{ t.last_active|when if t.last_active else '—' }}</td><td class="small">{{ t.created_at|when }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted small" style="margin:0">No teams yet. Teams appear here when someone signs up as a company.</p>{% endif %}
+</section>
+
+<section class="panel" style="margin-bottom:18px">
+  <div class="phead"><h2>Newest accounts</h2><span class="eyebrow">Latest 25 · <a href="/admin/export/users.csv">download all</a></span></div>
+  {% if st.people %}
+  <div class="tblwrap"><table>
+    <thead><tr><th>Person</th><th>Team</th><th style="text-align:right">Calculations</th><th>Joined</th><th>Last seen</th></tr></thead>
+    <tbody>{% for p in st.people %}<tr>
+      <td><b>{{ p.name }}</b><div class="small muted">{{ p.email }}</div></td>
+      <td>{% if p.teams %}{{ p.teams }}{% else %}<span class="muted">Personal</span>{% endif %}</td>
+      <td class="v">{{ p.calcs }}</td><td class="small">{{ p.created_at|when }}</td><td class="small">{{ p.last_seen|when if p.last_seen else '—' }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted small" style="margin:0">No accounts yet.</p>{% endif %}
+</section>
+
+<section class="panel" id="tools">
+  <div class="phead"><h2>Your calculators</h2>
+    <div class="ownerbar"><a class="btn sm" href="/admin/tools/new?example=1">Start from an example</a><a class="btn sm primary" href="/admin/tools/new">New calculator</a></div></div>
+  <p class="sub small" style="margin:-4px 0 12px">Build extra calculators from your own formulas. Live ones appear under <a href="/tools">Tools</a> for every visitor, free like the main calculator.</p>
+  {% if tools %}
+  <div class="tblwrap"><table>
+    <thead><tr><th>Calculator</th><th>Status</th><th style="text-align:right">Opens</th><th>Updated</th><th></th></tr></thead>
+    <tbody>{% for t in tools %}<tr>
+      <td><a class="ttl" href="/admin/tools/{{ t.id }}">{{ t.title }}</a><div class="small muted">/tools/{{ t.slug }}</div></td>
+      <td>{% if t.published %}<span class="badge live">Live</span>{% else %}<span class="badge draft">Draft</span>{% endif %}</td>
+      <td class="v">{{ t.views }}</td><td class="small">{{ t.updated_at|when }}</td>
+      <td style="white-space:nowrap;text-align:right">
+        <a class="btn sm" href="/tools/{{ t.slug }}">Open</a>
+        <a class="btn sm" href="/admin/tools/{{ t.id }}">Edit</a>
+        <form method="post" action="/admin/tools/{{ t.id }}/publish" class="inline"><input type="hidden" name="published" value="{{ 0 if t.published else 1 }}"><button class="btn sm" type="submit">{{ 'Hide' if t.published else 'Publish' }}</button></form>
+        <form method="post" action="/admin/tools/{{ t.id }}/delete" class="inline" data-msg="Delete {{ t.title }}? This cannot be undone." onsubmit="return confirm(this.dataset.msg)"><button class="btn sm danger" type="submit">Delete</button></form>
+      </td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <div class="empty" style="padding:24px">No extra calculators yet. <a href="/admin/tools/new?example=1">Start from the example</a> to see how formulas work.</div>
+  {% endif %}
+</section>
+<script type="application/json" id="charts">{{ charts|safe }}</script>
+{% endblock %}
+{% block scripts %}<script src="/static/dashboard.js?v=5"></script>{% endblock %}

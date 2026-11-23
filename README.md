@@ -11,6 +11,7 @@ It covers ten processes: cut off, closed upset, open upset, setting to perform, 
 - **Teams**: everyone in a team workspace sees and edits the team's calculations. Saving checks for newer edits by colleagues (load theirs, overwrite, or save a copy), and open calculations refresh when a teammate saves.
 - **Admin role**: invite links, roles, removing members, password reset links, renaming the workspace.
 - **Materials**: admins add custom materials (C, n, Rm) and hide standard ones for their workspace.
+- **Site owner**: accounts whose email is listed in the `SITE_ADMIN_EMAILS` environment variable (comma-separated) can add, edit and remove materials in the standard library that every account sees. The library lives in the database and is seeded from `strainforge/materials.json`.
 - **Pricing**: Personal $15/month; Team $15/month incl. the admin + $10/month per extra seat. Billing is not switched on yet; every workspace runs as early access.
 
 ## Stack

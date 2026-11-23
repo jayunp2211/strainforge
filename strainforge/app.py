@@ -31,7 +31,17 @@ PROC_NOTE = {1: "Shearing wire to length", 2: "Upsetting a head in a closed die"
              4: "Upsetting to a preform", 5: "Flattening a preform to the head", 6: "Open die reduction of the shank",
              7: "Forward extrusion in a closed die", 8: "Cup forming with a punch", 9: "Punching out the web",
              10: "Trimming a hexagon, square or round head"}
-DEFAULT_NAMES = {m["name"] for m in DEFAULT_MATERIALS}
+
+
+def library() -> list[dict]:
+    """The standard library (edited by site owners). Falls back to the built-in list without a database."""
+    if not config.DATABASE_URL:
+        return list(DEFAULT_MATERIALS)
+    return list(db.library()) or list(DEFAULT_MATERIALS)
+
+
+def library_names() -> set[str]:
+    return {m["name"] for m in library()}
 SID, WS = "sf_sid", "sf_ws"
 MONTH = 60 * 60 * 24 * 30
 
@@ -95,6 +105,10 @@ class Session:
     @property
     def name(self):
         return (self.user["full_name"] or self.email.split("@")[0]) if self.user else ""
+
+    @property
+    def is_site_admin(self):
+        return bool(self.user) and self.email.lower() in config.SITE_ADMIN_EMAILS
 
     @property
     def is_admin(self):
@@ -182,7 +196,9 @@ def site_url(request: Request) -> str:
 
 def flash_redirect(url: str, msg: str = "", err: str = "") -> RedirectResponse:
     q = f"msg={quote(msg)}" if msg else f"err={quote(err)}" if err else ""
-    return RedirectResponse(url + (("&" if "?" in url else "?") + q if q else ""), 303)
+    url, _, frag = url.partition("#")
+    url += ("&" if "?" in url else "?") + q if q else ""
+    return RedirectResponse(url + ("#" + frag if frag else ""), 303)
 
 
 def jresp(data, status=200):
@@ -194,10 +210,10 @@ def jresp(data, status=200):
 def workspace_materials(s: Session) -> tuple[list[dict], list[dict]]:
     """(materials visible in the calculator, custom rows with ids)."""
     if not s.ws:
-        return list(DEFAULT_MATERIALS), []
+        return library(), []
     hidden = set(s.ws.get("hidden_materials") or [])
     custom = db.custom_materials(s.user_id, s.ws["id"])
-    out = [m for m in DEFAULT_MATERIALS if m["name"] not in hidden]
+    out = [m for m in library() if m["name"] not in hidden]
     out += [{"name": m["name"], "C": float(m["c"]), "n": float(m["n"]),
              "Rm": float(m["rm"]) if m["rm"] is not None else None, "custom": True} for m in custom]
     out.sort(key=lambda m: m["name"].lower())
@@ -219,12 +235,15 @@ def _material_props(material: str, custom):
 
 
 def run_calc(process, shape, material, inputs, custom=None, sweep=None):
-    mats = list(DEFAULT_MATERIALS)
+    mats = library()
     props = _material_props(material, custom)
     if props:
         mats = [m for m in mats if m["name"] != material] + [props]
-    elif material not in DEFAULT_NAMES:
-        material = "CuZr"
+    elif not any(m["name"] == material for m in mats):
+        material = "CuZr" if any(m["name"] == "CuZr" for m in mats) else mats[0]["name"]
+    if not props:
+        m = next(m for m in mats if m["name"] == material)
+        props = {"name": m["name"], "C": m["C"], "n": m["n"], "Rm": m.get("Rm")}
     clean = {}
     for k, v in (inputs or {}).items():
         if not re.fullmatch(r"C\d{2}", str(k)):
@@ -263,7 +282,7 @@ def calculator(request: Request, calc: str | None = None):
         if not s.ws or s.ws["id"] != wsid:
             s.ws = next((w for w in s.workspaces if w["id"] == wsid), s.ws)
             switch_to = wsid
-    mats, _ = workspace_materials(s) if s.signed_in else (list(DEFAULT_MATERIALS), [])
+    mats, _ = workspace_materials(s) if s.signed_in else (library(), [])
     resp = page(request, "calculator.html", s, **_calc_ctx(mats, saved, s))
     if switch_to:
         _cookie(resp, WS, switch_to)
@@ -638,10 +657,10 @@ def invite_accept(request: Request, token: str):
 def materials(request: Request):
     s = load_session(request)
     if not s.signed_in or not s.ws:
-        return page(request, "materials.html", s, defaults=DEFAULT_MATERIALS, custom=[], hidden=set())
+        return page(request, "materials.html", s, defaults=library(), custom=[], hidden=set())
     _, custom = workspace_materials(s)
-    return page(request, "materials.html", s, defaults=DEFAULT_MATERIALS, custom=custom,
-                hidden=set(s.ws.get("hidden_materials") or []))
+    return page(request, "materials.html", s, defaults=library(), custom=custom,
+                hidden=set(s.ws.get("hidden_materials") or []), edit=request.query_params.get("edit", ""))
 
 
 def _float(v, lo=None, hi=None):
@@ -664,7 +683,7 @@ def material_add(request: Request, name: str = Form(...), c: str = Form(...), n:
     Rm = _float(rm, 0, 1e6) if rm.strip() else None
     if not name or C is None or N is None or (rm.strip() and Rm is None):
         return flash_redirect("/materials", err="Enter a name, C above 0 and n from 0 up to 1.")
-    if name in DEFAULT_NAMES:
+    if name.lower() in {n.lower() for n in library_names()}:
         return flash_redirect("/materials", err=f"{name} is already in the standard library. Choose another name.")
     if Rm is None:
         Rm = C * (N / math.e) ** N if N > 0 else C
@@ -689,10 +708,61 @@ def material_visibility(request: Request, name: str = Form(...), hide: int = For
     if not s.ws:
         return need_login(request)
     hidden = set(s.ws.get("hidden_materials") or [])
-    if name in DEFAULT_NAMES:
+    if name in library_names() or not hide:
         (hidden.add if hide else hidden.discard)(name)
     db.set_hidden(s.user_id, s.ws["id"], hidden)
     return RedirectResponse("/materials#std", 303)
+
+
+def _material_form(name, c, n, rm):
+    name = name.strip()[:60]
+    C, N = _float(c, 0, 1e6), _float(n, -1e-12, 1)
+    Rm = _float(rm, 0, 1e6) if rm.strip() else None
+    if not name or C is None or N is None or (rm.strip() and Rm is None):
+        raise ValueError("Enter a name, C above 0 and n from 0 up to 1.")
+    if Rm is None:
+        Rm = C * (N / math.e) ** N if N > 0 else C
+    return name, C, N, round(Rm, 2)
+
+
+def _need_site_admin(s: Session):
+    if not s.is_site_admin:
+        raise db.Denied("Only the site owner can change the standard library.")
+
+
+@app.post("/library/add")
+def library_add(request: Request, name: str = Form(...), c: str = Form(...), n: str = Form(...), rm: str = Form("")):
+    s = load_session(request)
+    _need_site_admin(s)
+    try:
+        name, C, N, Rm = _material_form(name, c, n, rm)
+        db.lib_add(s.user_id, name, C, N, Rm)
+    except ValueError as e:
+        return flash_redirect("/materials#std", err=str(e))
+    return flash_redirect("/materials#std", msg=f"{name} added to the standard library for everyone.")
+
+
+@app.post("/library/{mid}/edit")
+def library_edit(request: Request, mid: str, name: str = Form(...), c: str = Form(...), n: str = Form(...), rm: str = Form("")):
+    s = load_session(request)
+    _need_site_admin(s)
+    if not is_uuid(mid):
+        return RedirectResponse("/materials#std", 303)
+    try:
+        name, C, N, Rm = _material_form(name, c, n, rm)
+        db.lib_update(s.user_id, mid, name, C, N, Rm)
+    except ValueError as e:
+        return flash_redirect(f"/materials?edit={mid}#std", err=str(e))
+    return flash_redirect("/materials#std", msg=f"{name} updated for everyone.")
+
+
+@app.post("/library/{mid}/delete")
+def library_delete(request: Request, mid: str):
+    s = load_session(request)
+    _need_site_admin(s)
+    if is_uuid(mid):
+        db.lib_delete(mid)
+    return flash_redirect("/materials#std", msg="Material removed from the standard library.")
 
 
 # ------------------------------------------------------------------ misc

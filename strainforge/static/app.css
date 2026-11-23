@@ -242,3 +242,7 @@ details.drawer summary { cursor: pointer; font-weight: 600; font-size: .88rem; c
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .topnav .cta { color: #0d1b22; } }
 
 @media (max-width: 600px) { .rail { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } .proc { font-size: .72rem; padding: 4px 4px 6px; } .proc .thumb { height: 48px; } .proc .thumb .dwg { max-height: 44px; } }
+.libadd { display: grid; grid-template-columns: minmax(0,2fr) repeat(3, minmax(0,1fr)) auto; gap: 8px; align-items: center; margin-bottom: 12px; }
+.libadd .tf { padding: 7px 9px; }
+tr.editing td { background: var(--accent-soft); }
+@media (max-width: 760px) { .libadd { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } .libadd .tf:first-child { grid-column: 1 / -1; } }

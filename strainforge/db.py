@@ -20,7 +20,7 @@ from psycopg.types.json import Jsonb
 
 from . import config
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SCHEMA = """
 create extension if not exists pgcrypto;
 create table if not exists users (
@@ -118,6 +118,16 @@ create table if not exists login_attempts (
 );
 create index if not exists login_attempts_email on login_attempts(lower(email), at);
 create table if not exists schema_version (v int primary key);
+create table if not exists library_materials (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  c numeric not null check (c > 0),
+  n numeric not null check (n >= 0 and n < 1),
+  rm numeric,
+  updated_by uuid references users(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists library_materials_name on library_materials (lower(name));
 """
 
 SESSION_DAYS = 30
@@ -213,6 +223,11 @@ def ensure_schema():
             with tx() as cur:
                 cur.execute("select pg_advisory_xact_lock(424242)")
                 cur.execute(SCHEMA)
+                cur.execute("select count(*) as n from library_materials")
+                if cur.fetchone()["n"] == 0:
+                    from .calc import DEFAULT_MATERIALS
+                    cur.executemany("insert into library_materials(name, c, n, rm) values (%s,%s,%s,%s) on conflict do nothing",
+                                    [(m["name"], m["C"], m["n"], m.get("Rm")) for m in DEFAULT_MATERIALS])
                 cur.execute("insert into schema_version(v) values (%s) on conflict do nothing", (SCHEMA_VERSION,))
         _schema_ready = True
 
@@ -563,3 +578,50 @@ def delete_material(uid, ws_id, mid):
 def set_hidden(uid, ws_id, hidden):
     _need_paid(_need_admin(uid, ws_id))
     q("update workspaces set hidden_materials = %s where id = %s", (sorted(hidden), ws_id))
+
+
+# ------------------------------------------------------------------ standard material library (site-wide)
+
+_lib_cache = {"at": 0.0, "rows": None}
+LIB_TTL = 30
+
+
+def library(fresh=False):
+    """The standard library everyone sees, as [{id, name, C, n, Rm}]."""
+    import time
+    if not fresh and _lib_cache["rows"] is not None and time.time() - _lib_cache["at"] < LIB_TTL:
+        return _lib_cache["rows"]
+    ensure_schema()
+    rows = [{"id": str(r["id"]), "name": r["name"], "C": float(r["c"]), "n": float(r["n"]),
+             "Rm": float(r["rm"]) if r["rm"] is not None else None}
+            for r in q("select id, name, c, n, rm from library_materials order by lower(name)")]
+    _lib_cache.update(at=time.time(), rows=rows)
+    return rows
+
+
+def _lib_changed():
+    _lib_cache.update(at=0.0, rows=None)
+
+
+def lib_add(uid, name, c, n, rm):
+    try:
+        q("insert into library_materials(name, c, n, rm, updated_by) values (%s,%s,%s,%s,%s)", (name, c, n, rm, uid))
+    except psycopg.errors.UniqueViolation:
+        raise ValueError(f"{name} is already in the standard library.")
+    _lib_changed()
+
+
+def lib_update(uid, mid, name, c, n, rm):
+    try:
+        rows = q("update library_materials set name=%s, c=%s, n=%s, rm=%s, updated_by=%s, updated_at=now() "
+                 "where id=%s returning id", (name, c, n, rm, uid, mid))
+    except psycopg.errors.UniqueViolation:
+        raise ValueError(f"Another material is already called {name}.")
+    _lib_changed()
+    if not rows:
+        raise ValueError("That material no longer exists.")
+
+
+def lib_delete(mid):
+    q("delete from library_materials where id = %s", (mid,))
+    _lib_changed()

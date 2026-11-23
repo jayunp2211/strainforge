@@ -268,7 +268,12 @@ function adopt(row, loadInputs) {
   if (loadInputs) {
     const inp = Object.assign({}, row.inputs || {});
     const mp = inp._material; delete inp._material;
-    if (mp && !matObj(row.material)) { MATS.push(Object.assign({ custom: true }, mp)); MATS.sort((a, b) => a.name.localeCompare(b.name)); }
+    const curM = matObj(row.material);
+    if (mp && (!curM || (!curM.custom && (Math.abs(curM.C - mp.C) > 1e-9 || Math.abs(curM.n - mp.n) > 1e-9)))) {
+      // Use the material values this calculation was saved with.
+      if (curM) { MATS = MATS.filter(m => m !== curM); setTimeout(() => toast('Using the material values saved with this calculation; the library has changed since.'), 400); }
+      MATS.push(Object.assign({ custom: true }, mp)); MATS.sort((a, b) => a.name.localeCompare(b.name));
+    }
     state.p = row.process; state.shape[row.process] = row.shape; state.mat = row.material;
     state.inputs[row.process + '-' + row.shape] = inp; state.example[row.process + '-' + row.shape] = false;
     $('calcTitle').value = row.title; $('calcNotes').value = row.notes || '';

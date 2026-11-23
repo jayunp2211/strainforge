@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title or 'New calculator' }} · Builder · Strainforge{% endblock %}
+{% block body %}
+<div class="pagehead">
+  <div>
+    <span class="eyebrow"><a href="/#tools">Dashboard</a> · Calculator builder</span>
+    <h1>{{ t.title or 'New calculator' }}</h1>
+    <p class="sub">Name the inputs, then write each result as a formula. Results can use inputs and any result above them. The preview updates as you type.</p>
+  </div>
+  <div class="actions">
+    {% if t.id %}<a class="btn" href="/tools/{{ t.slug }}" target="_blank" rel="noopener">Open page</a>{% endif %}
+    <button class="btn primary" type="button" data-save>Save</button>
+  </div>
+</div>
+<div class="builder">
+  <div class="stack">
+    <section class="panel">
+      <div class="phead"><h2>Details</h2></div>
+      <div class="form-grid">
+        <label>Name <span class="hint">Shown as the page title, e.g. “Wire weight per 1000 parts”</span><input id="title" maxlength="80" value="{{ t.title }}"></label>
+        <label>Web address <span class="hint">strainforge.vercel.app/tools/<b id="slugShow">{{ t.slug or '…' }}</b> · lowercase letters, digits and dashes</span><input id="slug" maxlength="60" value="{{ t.slug }}" placeholder="made from the name if empty"></label>
+        <label>Short description <span class="hint">One sentence on the Tools page</span><input id="summary" maxlength="240" value="{{ t.summary }}"></label>
+        <div style="display:flex;gap:22px;flex-wrap:wrap">
+          <label class="switch"><input type="checkbox" id="material" {% if t.spec.material %}checked{% endif %}> Uses a material</label>
+          <label class="switch"><input type="checkbox" id="published" {% if t.published %}checked{% endif %}> Live for everyone</label>
+        </div>
+        <p class="help" style="margin:0">With a material, visitors pick one from the library and formulas can use <code>C</code>, <code>n</code>, <code>Rm</code> and <code>kf(φ)</code> = C·φ<sup>n</sup>.</p>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="phead"><h2>Inputs</h2><button class="btn sm" type="button" id="addIn">+ Add input</button></div>
+      <div class="colhead in"><span>Name in formulas</span><span>Label</span><span>Unit</span><span>Default</span><span></span></div>
+      <div class="rows" id="ins"></div>
+    </section>
+    <section class="panel">
+      <div class="phead"><h2>Results</h2><button class="btn sm" type="button" id="addOut">+ Add result</button></div>
+      <div class="colhead out"><span>Name in formulas</span><span>Label</span><span>Unit</span><span>Decimals</span><span></span></div>
+      <div class="rows" id="outsEd"></div>
+    </section>
+    <section class="panel">
+      <div class="phead"><h2>Notes for users</h2><span class="eyebrow">Optional</span></div>
+      <textarea class="tf" id="notes" maxlength="2000" placeholder="Assumptions, sources, when not to use it…">{{ t.spec.notes }}</textarea>
+    </section>
+  </div>
+  <div class="stack sticky">
+    <section class="panel" id="prevPanel">
+      <div class="phead"><h2>Preview</h2><span class="eyebrow">With the default inputs</span></div>
+      <div class="field" id="prevMatRow" hidden><label for="prevMat">Material</label><div class="ctl"><select id="prevMat"></select></div></div>
+      <div id="prevErr" class="error-box" hidden></div>
+      <div class="outs" id="prevOuts" style="margin-top:8px"></div>
+    </section>
+    <section class="panel">
+      <div class="phead"><h2>Formula help</h2></div>
+      <p class="help" style="margin:0 0 6px">Operators <code>+ - * / ^</code> and brackets. Compare with <code>&lt; &gt; = &lt;&gt;</code>. Angles are in degrees.</p>
+      <div class="codechips"><code>PI()</code><code>sqrt(x)</code><code>ln(x)</code><code>log(x)</code><code>exp(x)</code><code>abs(x)</code><code>min(a,b)</code><code>max(a,b)</code><code>round(x,2)</code><code>sin(x)</code><code>cos(x)</code><code>tan(x)</code><code>IF(cond, a, b)</code><code>kf(phi)</code></div>
+      <p class="help" style="margin:10px 0 0">Example: <code>PI()*d0^2/4*L0</code> gives the slug volume from <code>d0</code> and <code>L0</code>.</p>
+    </section>
+    <div class="row-actions" style="margin-top:0">
+      <button class="btn primary" type="button" data-save>Save</button>
+      <a class="btn" href="/#tools">Back to dashboard</a>
+    </div>
+  </div>
+</div>
+<script type="application/json" id="boot">{{ boot|safe }}</script>
+{% endblock %}
+{% block scripts %}<script src="/static/tool_edit.js?v=5"></script>{% endblock %}

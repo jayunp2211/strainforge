@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Strainforge{% endblock %}
+{% block body %}
+<div class="errpage">
+  <div class="code">404</div>
+  <h1 style="margin-top:10px">{{ title }}</h1>
+  <p class="sub" style="margin:8px auto 20px">{{ text }}</p>
+  <a class="btn primary" href="/">Go to the start page</a>
+</div>
+{% endblock %}

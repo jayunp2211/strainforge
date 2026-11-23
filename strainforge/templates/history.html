@@ -6,7 +6,7 @@
     <h1>{{ s.ws.name if s.ws else 'History' }}</h1>
     <p class="sub">{% if s.ws and s.ws.kind == 'team' %}Every calculation saved by your team. Anyone in the team can open and update them; each save keeps a version.{% else %}Your saved calculations. Open one to keep working on it.{% endif %}</p>
   </div>
-  <a class="btn primary" href="/">New calculation</a>
+  <a class="btn primary" href="/calculator">New calculation</a>
 </div>
 <div class="panel">
   <form class="filters" method="get" action="/history">
@@ -27,7 +27,7 @@
     <tbody>
     {% for r in rows %}
       <tr id="row-{{ r.id }}">
-        <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="/?calc={{ r.id }}">{{ r.title }}</a>{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
+        <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="/calculator?calc={{ r.id }}">{{ r.title }}</a>{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
         <td>{{ PROCESSES[r.process - 1] }}<div class="small muted">{{ SHAPE_NAMES[r.shape] }}</div></td>
         <td>{{ r.material }}</td>
         <td class="v">{{ r.summary.F|num(1) }} <span class="muted">kN</span></td>
@@ -41,7 +41,7 @@
   </div>
   {% else %}
   <div class="empty">
-    {% if q or process or mine %}Nothing matches that search.{% else %}No saved calculations yet. Open the <a href="/">calculator</a>, enter your dimensions and press <b>Save</b>.{% endif %}
+    {% if q or process or mine %}Nothing matches that search.{% else %}No saved calculations yet. Open the <a href="/calculator">calculator</a>, enter your dimensions and press <b>Save</b>.{% endif %}
   </div>
   {% endif %}
 </div>

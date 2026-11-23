@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Tools · Strainforge{% endblock %}
+{% block body %}
+<div class="pagehead">
+  <div><h1>Tools</h1><p class="sub">Calculators for cold forming work. All free to use, no account needed.</p></div>
+  {% if s.is_site_admin %}<div class="actions"><a class="btn primary" href="/admin/tools/new">New calculator</a></div>{% endif %}
+</div>
+<div class="toolgrid">
+  <a class="panel toolcard main" href="{{ '/calculator' if s.is_site_admin else '/' }}">
+    <span class="eyebrow">Main calculator</span>
+    <h2>Forming load &amp; energy</h2>
+    <p>Load, energy, deformation grade and tooling checks for all 10 processes and 16 product shapes.</p>
+    <span class="go">Open →</span>
+  </a>
+  {% for t in tools %}
+  <a class="panel toolcard" href="/tools/{{ t.slug }}">
+    <span class="eyebrow">{{ t.spec.inputs|length }} inputs · {{ t.spec.outputs|length }} results</span>
+    <h2>{{ t.title }}</h2>
+    <p>{{ t.summary or 'Open to calculate.' }}</p>
+    <span class="go">Open →</span>
+  </a>
+  {% endfor %}
+</div>
+{% if s.is_site_admin and not tools %}
+<p class="sub small" style="margin-top:16px">Only the main calculator is live. Build more from your <a href="/#tools">dashboard</a>.</p>
+{% endif %}
+{% endblock %}

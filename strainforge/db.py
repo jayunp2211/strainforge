@@ -20,7 +20,7 @@ from psycopg.types.json import Jsonb
 
 from . import config
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 SCHEMA = """
 create extension if not exists pgcrypto;
 create table if not exists users (
@@ -128,6 +128,29 @@ create table if not exists library_materials (
   updated_at timestamptz not null default now()
 );
 create unique index if not exists library_materials_name on library_materials (lower(name));
+create table if not exists calculators (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null,
+  title text not null,
+  summary text not null default '',
+  spec jsonb not null,
+  published boolean not null default false,
+  views bigint not null default 0,
+  created_by uuid references users(id) on delete set null,
+  updated_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists calculators_slug on calculators (lower(slug));
+create table if not exists page_views (
+  day date not null default current_date,
+  page text not null,
+  n bigint not null default 0,
+  primary key (day, page)
+);
+create index if not exists calculations_created on calculations(created_at);
+create index if not exists users_created on users(created_at);
+alter table users add column if not exists last_seen_at timestamptz;
 """
 
 SESSION_DAYS = 30
@@ -306,8 +329,11 @@ def new_session(uid) -> str:
 def session_user(token: str | None):
     if not token or len(token) > 100:
         return None
-    return q1("select u.id, u.email, u.full_name from sessions s join users u on u.id = s.user_id "
-              "where s.token_hash = %s and s.expires_at > now()", (_h(token),))
+    # One round trip: look up the session and note when the person was last seen (at most every 10 minutes).
+    return q1("with s as (select user_id from sessions where token_hash = %s and expires_at > now()), "
+              "touch as (update users set last_seen_at = now() where id = (select user_id from s) "
+              "and (last_seen_at is null or last_seen_at < now() - interval '10 minutes') returning id) "
+              "select u.id, u.email, u.full_name from users u join s on u.id = s.user_id", (_h(token),))
 
 
 def end_session(token: str | None):
@@ -625,3 +651,148 @@ def lib_update(uid, mid, name, c, n, rm):
 def lib_delete(mid):
     q("delete from library_materials where id = %s", (mid,))
     _lib_changed()
+
+
+# ------------------------------------------------------------------ owner-built calculators
+
+TOOL_COLS = "id, slug, title, summary, spec, published, views, created_at, updated_at"
+
+
+_tools_cache = {"at": 0.0, "rows": None}
+
+
+def tools(published_only=True):
+    import time
+    if published_only and _tools_cache["rows"] is not None and time.time() - _tools_cache["at"] < LIB_TTL:
+        return _tools_cache["rows"]
+    ensure_schema()
+    where = "where published" if published_only else ""
+    rows = q(f"select {TOOL_COLS} from calculators {where} order by lower(title)")
+    if published_only:
+        _tools_cache.update(at=time.time(), rows=rows)
+    return rows
+
+
+def _tools_changed():
+    _tools_cache.update(at=0.0, rows=None)
+
+
+def tool(slug_or_id: str):
+    ensure_schema()
+    col = "id::text" if len(slug_or_id) == 36 and slug_or_id.count("-") == 4 else "lower(slug)"
+    return q1(f"select {TOOL_COLS} from calculators where {col} = lower(%s)", (slug_or_id,))
+
+
+def save_tool(uid, tid, slug, title, summary, spec, published):
+    ensure_schema()
+    try:
+        if tid:
+            row = q1("update calculators set slug=%s, title=%s, summary=%s, spec=%s, published=%s, updated_by=%s, "
+                     "updated_at=now() where id=%s returning id", (slug, title, summary, Jsonb(spec), published, uid, tid))
+            if not row:
+                raise ValueError("That calculator no longer exists.")
+        else:
+            row = q1("insert into calculators(slug, title, summary, spec, published, created_by, updated_by) "
+                     "values (%s,%s,%s,%s,%s,%s,%s) returning id", (slug, title, summary, Jsonb(spec), published, uid, uid))
+    except psycopg.errors.UniqueViolation:
+        raise ValueError(f"Another calculator already uses the address /tools/{slug}.")
+    _tools_changed()
+    return str(row["id"])
+
+
+def set_tool_published(tid, published: bool):
+    q("update calculators set published=%s, updated_at=now() where id=%s", (published, tid))
+    _tools_changed()
+
+
+def delete_tool(tid):
+    q("delete from calculators where id=%s", (tid,))
+    _tools_changed()
+
+
+def tool_viewed(tid):
+    q("update calculators set views = views + 1 where id=%s", (tid,))
+
+
+def count_view(page: str):
+    """Daily visit counter for the owner dashboard. Never lets a failure reach the visitor."""
+    if not config.DATABASE_URL:
+        return
+    try:
+        ensure_schema()
+        q("insert into page_views(day, page, n) values (current_date, %s, 1) "
+          "on conflict (day, page) do update set n = page_views.n + 1", (page[:60],))
+    except psycopg.Error:
+        pass
+
+
+# ------------------------------------------------------------------ owner dashboard
+
+def owner_stats(base_cents: int, seat_cents: int) -> dict:
+    """Everything the site owner sees on the dashboard, in one round of queries."""
+    ensure_schema()
+    k = q1("""
+      select
+        (select count(*) from users) as users,
+        (select count(*) from users where created_at > now() - interval '7 days') as users_7,
+        (select count(*) from users where created_at > now() - interval '30 days') as users_30,
+        (select count(*) from users where created_at between now() - interval '60 days' and now() - interval '30 days') as users_prev_30,
+        (select count(*) from users where last_seen_at > now() - interval '7 days') as active_7,
+        (select count(*) from users where last_seen_at > now() - interval '30 days') as active_30,
+        (select count(*) from workspaces where kind = 'team') as teams,
+        (select count(*) from calculations) as calcs,
+        (select count(*) from calculations where created_at > now() - interval '30 days') as calcs_30,
+        (select count(*) from calculation_versions where created_at > now() - interval '30 days') as edits_30,
+        (select count(*) from materials) as custom_materials,
+        (select count(*) from library_materials) as library_materials,
+        (select count(*) from calculators) as tools,
+        (select count(*) from calculators where published) as tools_live,
+        (select coalesce(sum(n), 0) from page_views where day > current_date - 30) as views_30,
+        (select count(*) from invites where accepted_at is null and expires_at > now()) as open_invites
+    """)
+    teams = q("""
+      select w.id, w.name, w.plan, w.created_at, u.email as owner_email,
+             coalesce(nullif(u.full_name, ''), u.email) as owner_name,
+             (select count(*) from memberships m where m.workspace_id = w.id) as seats,
+             (select count(*) from calculations c where c.workspace_id = w.id) as calcs,
+             (select max(c.updated_at) from calculations c where c.workspace_id = w.id) as last_active
+      from workspaces w join users u on u.id = w.owner_id
+      where w.kind = 'team' order by seats desc, w.created_at desc limit 50""")
+    # People who aren't in any team would buy the Personal plan.
+    solo = q1("""select count(*) as n from users u where not exists (
+                   select 1 from memberships m join workspaces w on w.id = m.workspace_id
+                   where m.user_id = u.id and w.kind = 'team')""")["n"]
+    team_cents = sum(base_cents + max(0, t["seats"] - 1) * seat_cents for t in teams)
+    for t in teams:
+        t["mrr"] = (base_cents + max(0, t["seats"] - 1) * seat_cents) / 100
+    seats = sum(t["seats"] for t in teams)
+    mrr = (team_cents + solo * base_cents) / 100
+    weeks = q("""
+      with w as (select generate_series(date_trunc('week', now()) - interval '11 weeks', date_trunc('week', now()), interval '1 week') as wk)
+      select w.wk::date as week,
+             (select count(*) from users u where date_trunc('week', u.created_at) = w.wk) as signups,
+             (select count(*) from calculations c where date_trunc('week', c.created_at) = w.wk) as calcs
+      from w order by w.wk""")
+    days = q("""
+      with d as (select generate_series(current_date - 29, current_date, interval '1 day')::date as day)
+      select d.day, coalesce(sum(p.n), 0) as views from d left join page_views p on p.day = d.day
+      group by d.day order by d.day""")
+    by_process = q("select process, count(*) as n from calculations group by process order by n desc")
+    by_material = q("select material, count(*) as n from calculations group by material order by n desc limit 8")
+    people = q("""
+      select u.id, u.email, coalesce(nullif(u.full_name, ''), split_part(u.email, '@', 1)) as name, u.created_at,
+             u.last_seen_at as last_seen,
+             (select count(*) from calculations c where c.created_by = u.id) as calcs,
+             (select string_agg(w.name, ', ' order by w.name) from memberships m join workspaces w on w.id = m.workspace_id
+               where m.user_id = u.id and w.kind = 'team') as teams
+      from users u order by u.created_at desc limit 25""")
+    activity = q("""
+      select c.id, c.title, c.process, c.updated_at, w.name as workspace, w.kind,
+             coalesce(nullif(u.full_name, ''), u.email) as who
+      from calculations c join workspaces w on w.id = c.workspace_id left join users u on u.id = c.updated_by
+      order by c.updated_at desc limit 10""")
+    top_pages = q("select page, sum(n) as n from page_views where day > current_date - 30 group by page order by n desc limit 6")
+    return {"k": k, "mrr": mrr, "arr": mrr * 12, "solo": solo, "seats": seats, "team_mrr": team_cents / 100,
+            "solo_mrr": solo * base_cents / 100, "teams": teams, "weeks": weeks, "days": days,
+            "by_process": by_process, "by_material": by_material, "people": people, "activity": activity,
+            "top_pages": top_pages}

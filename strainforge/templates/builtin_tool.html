@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title }} calculator · Strainforge{% endblock %}
+{% block description %}{{ t.summary }}{% endblock %}
+{% block robots %}index{% endblock %}
+{% block head %}<style>{{ svg_css|safe }}</style>{% endblock %}
+{% block body %}
+{{ svg_defs|safe }}
+<div class="pagehead">
+  <div>
+    <span class="eyebrow"><a href="/tools">Tools</a></span>
+    <h1>{{ t.title }}</h1>
+    <p class="sub">{{ t.summary }}</p>
+  </div>
+</div>
+
+<div class="bench">
+  <div class="stack b-top">
+    <div class="panel">
+      <div class="phead"><h2>Quick start</h2><span class="chip ex" id="exChip" hidden>Example values</span></div>
+      <p class="sub small" style="margin:0">Enter the dimensions from your drawing; the material values are already filled in. Results update as you type. The link in your address bar keeps your inputs, so you can bookmark or share it.</p>
+    </div>
+  </div>
+  <div class="stack b-fig">
+    <div class="panel figpanel">
+      <div class="phead"><h2>Drawing</h2>
+        <div class="figtabs" role="tablist" aria-label="Drawing">
+          {% for f in t.figures %}<button type="button" role="tab" data-fig="{{ loop.index0 }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ f }}</button>{% endfor %}
+        </div>
+      </div>
+      <div class="figs" id="figs"></div>
+      <p class="hint small muted figtip">Drawn to the entered sizes. Click a dimension or an input to see which is which. Click the drawing to enlarge it.</p>
+    </div>
+  </div>
+  <div class="stack b-vars">
+    <div class="panel">
+      <div class="phead"><h2>Variables</h2><span class="eyebrow" id="varCount"></span></div>
+      <form id="vars" autocomplete="off" onsubmit="return false"></form>
+      <div class="row-actions">
+        <button class="btn" type="button" id="btnExample">Load example values</button>
+        <button class="btn" type="button" id="btnClear">Clear inputs</button>
+      </div>
+    </div>
+  </div>
+  <div class="stack b-res">
+    <div class="panel" id="resPanel">
+      <div class="phead"><h2>Results</h2><span class="eyebrow">Updates as you type</span></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="banner" id="banner" aria-live="polite"></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Design values</h2></div>
+      <div class="tblwrap"><table id="values"><tbody></tbody></table></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Design checks</h2><span class="eyebrow">Limits</span></div>
+      <div class="checks" id="checks"></div>
+    </div>
+  </div>
+</div>
+
+<section class="block cols2">
+  <div class="panel">
+    <div class="phead"><h2>Calculation steps</h2><span class="eyebrow">Every intermediate value</span></div>
+    <div class="tblwrap"><table id="detail"><thead><tr><th>Quantity</th><th style="text-align:right">Value</th><th>Unit</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>Equations</h2><span class="eyebrow">Method used</span></div>
+    <ul class="eq" id="eqs"></ul>
+  </div>
+</section>
+
+{% if t.notes %}
+<section class="block panel">
+  <div class="phead"><h2>Method notes</h2><span class="eyebrow">How the calculation is set up</span></div>
+  <ol class="notes">
+    {% for head, body in t.notes %}<li><b>{{ head }}</b> <span class="m">{{ body }}</span></li>{% endfor %}
+  </ol>
+</section>
+{% endif %}
+<script type="application/json" id="boot">{{ boot|safe }}</script>
+<dialog class="figdlg" id="figDlg" aria-label="Enlarged drawing"><div class="figdlg-in" id="figDlgBody"></div><form method="dialog"><button class="btn" type="submit">Close</button></form></dialog>
+{% endblock %}
+{% block scripts %}<script src="/static/builtin.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

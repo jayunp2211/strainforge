@@ -110,6 +110,9 @@ async def tool_save(request: Request):
         return jresp({"error": "Give the calculator a name."}, 400)
     if not SLUG_RE.match(slug):
         return jresp({"error": "The web address can use lowercase letters, digits and single dashes."}, 400)
+    from .. import builtin
+    if builtin.get(slug):
+        return jresp({"error": "That web address is taken by a built-in tool. Pick another."}, 400)
     if tid and not is_uuid(tid):
         return jresp({"error": "Not found"}, 404)
     try:

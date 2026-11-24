@@ -579,6 +579,7 @@ SVG_CSS = """
 .dwg .mvh{fill:var(--d-accent)}
 .dwg .fa{stroke:var(--d-muted);stroke-width:2}
 .dwg .fah{fill:var(--d-muted)}
+.dwg .bore{fill:var(--paper);stroke:var(--d-ink);stroke-width:1.2}
 """
 
 SVG_DEFS = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>'

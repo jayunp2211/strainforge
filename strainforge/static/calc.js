@@ -30,6 +30,12 @@ function fmt(v, d) {
   return v.toLocaleString('en-GB', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 const isNum = v => typeof v === 'number' && isFinite(v);
+// Units: the server works in metric; SFUnits converts for display and typed input.
+const U = window.SFUnits;
+const converts = u => U.unit(u) !== (u || '');
+const qty = (v, u, d) => fmt(U.out(v, u), converts(u) && d !== undefined ? Math.max(d, 1) : d);
+const uLbl = u => esc(U.unit(u));
+const inVal = (v, u) => (isNum(v) && converts(u) ? String(+U.out(v, u).toPrecision(6)) : v);
 
 // ---------------------------------------------------------------- materials
 function matObj(name) { return MATS.find(m => m.name === name); }
@@ -42,7 +48,7 @@ function drawMatSelect() {
 function drawMatTable() {
   const q = $('matSearch').value.trim().toLowerCase();
   $('matTable').querySelector('tbody').innerHTML = MATS.filter(m => !q || m.name.toLowerCase().includes(q)).map(m =>
-    `<tr data-m="${esc(m.name)}" class="${m.name === state.mat ? 'sel' : ''}" tabindex="0"><td>${esc(m.name)}${m.custom ? ' <span class="chip">custom</span>' : ''}</td><td class="v">${fmt(m.C, 0)}</td><td class="v">${fmt(m.n, 3)}</td><td class="v">${m.Rm == null ? '—' : fmt(m.Rm, 1)}</td></tr>`).join('');
+    `<tr data-m="${esc(m.name)}" class="${m.name === state.mat ? 'sel' : ''}" tabindex="0"><td>${esc(m.name)}${m.custom ? ' <span class="chip">custom</span>' : ''}</td><td class="v">${qty(m.C, 'N/mm²', 0)}</td><td class="v">${fmt(m.n, 3)}</td><td class="v">${m.Rm == null ? '—' : qty(m.Rm, 'N/mm²', 1)}</td></tr>`).join('');
 }
 $('matSel').addEventListener('change', e => { state.mat = e.target.value; touch(); drawMatTable(); calc(); });
 $('matSearch').addEventListener('input', drawMatTable);
@@ -121,7 +127,7 @@ function draw3d() {
   }
   const vals = {};
   for (const [k, v] of Object.entries(curInputs())) if (typeof v === 'number') vals[k] = v;
-  const notes = m3d.update(state.shape[state.p], vals, state.p) || [];
+  const notes = m3d.update(state.shape[state.p], vals, state.p, U.system === 'imperial' ? 12.7 : 10) || [];
   $('m3dNotes').textContent = notes.join(' ');
 }
 
@@ -171,10 +177,10 @@ function buildForm(res) {
       ctl = `<select id="${id}" data-a="${x.cell}">${opts.map(o => `<option value="${esc(o)}"${(val || '') === o ? ' selected' : ''}>${o ? esc(o) : 'Not chosen'}</option>`).join('')}</select>`;
     } else {
       const ph = x.cell === 'C47' ? 'auto' : x.cell === 'C48' ? (state.p === 8 ? 'enter K1' : 'auto') : '';
-      ctl = `<input id="${id}" data-a="${x.cell}" inputmode="decimal" value="${val == null ? '' : esc(val)}" placeholder="${ph}">`;
+      ctl = `<input id="${id}" data-a="${x.cell}" data-u="${esc(x.unit)}" inputmode="decimal" value="${val == null ? '' : esc(inVal(val, x.unit))}" placeholder="${ph}">`;
     }
     const extra = x.k1 ? `<div class="hint" id="k1hint"></div>` : '';
-    html += `<div class="field" data-k="${esc(dimKey(x.label))}"><label for="${id}">${esc(x.label)}</label><div class="ctl">${ctl}<span class="unit">${esc(x.unit)}</span></div>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}${extra}</div>`;
+    html += `<div class="field" data-k="${esc(dimKey(x.label))}"><label for="${id}">${esc(x.label)}</label><div class="ctl">${ctl}<span class="unit">${uLbl(x.unit)}</span></div>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}${extra}</div>`;
   }
   $('vars').innerHTML = html;
   highlightDim(figKeys);
@@ -182,14 +188,14 @@ function buildForm(res) {
   $('vars').querySelectorAll('[data-a]').forEach(el => {
     el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
       let v = el.value.trim();
-      if (el.tagName !== 'SELECT') { if (v === '') v = null; else { const n = parseFloat(v.replace(',', '.')); v = isNaN(n) ? v : n; } }
+      if (el.tagName !== 'SELECT') { if (v === '') v = null; else { const n = parseFloat(v.replace(',', '.')); v = isNaN(n) ? v : U.in(n, el.dataset.u); } }
       inp[el.dataset.a] = v; state.example[key()] = false; touch(); calc();
     });
   });
 }
 
 function drawAuto(res) {
-  $('autoVals').innerHTML = res.auto.map(x => `<div class="field"><span class="lbl">${esc(x.label)}</span><div class="ro">${fmt(x.value)} <span class="unit">${esc(x.unit)}</span><span class="tag">automatic</span></div>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}</div>`).join('');
+  $('autoVals').innerHTML = res.auto.map(x => `<div class="field"><span class="lbl">${esc(x.label)}</span><div class="ro">${qty(x.value, x.unit)} <span class="unit">${uLbl(x.unit)}</span><span class="tag">automatic</span></div>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}</div>`).join('');
   const k1row = res.inputs.find(x => x.k1);
   if (k1row && $('k1hint')) {
     $('k1hint').innerHTML = `<button class="btn sm" type="button" data-k1="theoretical">Use theoretical ${fmt(k1row.k1.theoretical, 3)}</button> <button class="btn sm" type="button" data-k1="simulation">Use simulation ${fmt(k1row.k1.simulation, 3)}</button>`;
@@ -232,7 +238,7 @@ async function run() {
 
 function drawResults(res) {
   const p = state.p, r = res.results;
-  $('roKf').innerHTML = `${fmt(res.kf, 0)} <span class="unit">N/mm²</span>`;
+  $('roKf').innerHTML = `${qty(res.kf, 'N/mm²', 0)} <span class="unit">${uLbl('N/mm²')}</span>`;
   $('roN').innerHTML = fmt(res.n, 3);
   $('exChip').hidden = !state.example[key()];
   const kp = [
@@ -241,17 +247,18 @@ function drawResults(res) {
     { k: 'Deformation grade φ', v: r.phi, u: '', s: r.phiNote },
     { k: r.checkLabel, v: r.check, u: r.checkUnit, s: r.checkNote },
   ];
-  $('kpis').innerHTML = kp.map(x => `<div class="kpi${x.main ? ' main' : ''}"><div class="eyebrow">${esc(x.k)}</div><div class="v">${fmt(x.v)}${isNum(x.v) && x.u ? `<span class="u">${x.u}</span>` : ''}</div><div class="s">${esc(x.s)}</div></div>`).join('');
+  $('kpis').innerHTML = kp.map(x => `<div class="kpi${x.main ? ' main' : ''}"><div class="eyebrow">${esc(x.k)}</div><div class="v">${qty(x.v, x.u, converts(x.u) && isNum(x.v) && Math.abs(U.out(x.v, x.u)) >= 100 ? 1 : undefined)}${isNum(x.v) && x.u ? `<span class="u">${uLbl(x.u)}</span>` : ''}</div><div class="s">${esc(x.s)}</div></div>`).join('');
   const w = res.warnings;
   $('banner').innerHTML = w.length ? w.map(t => `<span class="pill bad"><span class="dot"></span>${esc(t)}</span>`).join('')
     : (!isNum(r.F) || r.F === 0 ? `<span class="pill warn"><span class="dot"></span>Enter the dimensions to get a load</span>` : `<span class="pill ok"><span class="dot"></span>All tooling checks pass</span>`);
   $('resSub').textContent = res.processName + ' · ' + res.material;
   $('checks').innerHTML = res.checks.length ? res.checks.map(c =>
-    `<div class="check ${c.state}"><span class="stripe"></span><div><div class="t">${esc(c.title)}</div><div class="d">${esc(c.desc)}</div></div><div class="r">${esc(c.value)}<div class="d">limit ${esc(c.limit)}</div></div></div>`).join('')
+    `<div class="check ${c.state}"><span class="stripe"></span><div><div class="t">${esc(c.title)}</div><div class="d">${esc(U.text(c.desc))}</div></div><div class="r">${esc(U.text(c.value))}<div class="d">limit ${esc(U.text(c.limit))}</div></div></div>`).join('')
     : `<div class="check na"><span class="stripe"></span><div><div class="t">No process checks</div><div class="d">There are no limit checks for ${esc(res.processName)}.</div></div><div class="r"></div></div>`;
   $('detail').querySelector('tbody').innerHTML = res.detail.map(d => d.group ? `<tr class="grp"><td colspan="3">${esc(d.group)}</td></tr>`
-    : `<tr class="${d.key ? 'key' : ''}"><td>${esc(d.label)}</td><td class="v">${fmt(d.value)}</td><td class="u">${esc(d.unit)}</td></tr>`).join('');
-  $('eqs').innerHTML = res.equations.map(e => `<li>${esc(e)}</li>`).join('');
+    : `<tr class="${d.key ? 'key' : ''}"><td>${esc(d.label)}</td><td class="v">${qty(d.value, d.unit)}</td><td class="u">${uLbl(d.unit)}</td></tr>`).join('');
+  $('eqs').innerHTML = res.equations.map(e => `<li>${esc(e)}</li>`).join('')
+    + (U.system === 'imperial' ? '<li class="muted">The equations work in mm, N/mm², kN and kJ. Inputs are converted to metric before calculating and results are converted back for display.</li>' : '');
   drawChart(res);
 }
 
@@ -260,14 +267,15 @@ function drawSensSelect(res) {
   const sel = $('sensVar'), inp = curInputs();
   const opts = res.inputs.filter(x => x.kind !== 'select' && isNum(inp[x.cell]) && inp[x.cell] !== 0);
   const prev = state.sweep;
-  sel.innerHTML = opts.map(x => `<option value="${x.cell}">${esc(x.label)}${x.unit ? ' (' + esc(x.unit) + ')' : ''}</option>`).join('');
+  sel.innerHTML = opts.map(x => `<option value="${x.cell}">${esc(x.label)}${x.unit ? ' (' + uLbl(x.unit) + ')' : ''}</option>`).join('');
   if (opts.some(o => o.cell === prev)) sel.value = prev;
 }
 function drawChart(res) {
   const sel = $('sensVar');
   if (!sel.value) { $('chart').innerHTML = '<p class="sub">Enter values to see how the load reacts.</p>'; return; }
   if (!res.sweep || res.sweep.cell !== sel.value) { $('chart').innerHTML = '<p class="sub">Calculating…</p>'; return; }
-  const pts = res.sweep.points.map(([x, y]) => ({ x, y }));
+  const xu = (res.inputs.find(x => x.cell === res.sweep.cell) || {}).unit;
+  const pts = res.sweep.points.map(([x, y]) => ({ x: U.out(x, xu), y: y === null ? null : U.out(y, 'kN') }));
   const ys = pts.filter(p => p.y !== null).map(p => p.y);
   if (!ys.length) { $('chart').innerHTML = '<p class="sub">No valid load in this range.</p>'; return; }
   const W = 560, H = 232, l = 56, r = 26, t = 12, b = 40;
@@ -283,7 +291,7 @@ function drawChart(res) {
   for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; grid += `<line x1="${l}" x2="${W - r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v, v >= 100 ? 0 : 1)}</text>`; }
   for (const f of [0.7, 0.85, 1, 1.15, 1.3]) { const x = base * f; grid += `<text x="${X(x)}" y="${H - b + 16}" text-anchor="middle">${fmt(x, Math.abs(x) >= 100 ? 0 : 2)}</text>`; }
   const cur = pts[12];
-  const mark = cur.y !== null ? `<line x1="${X(cur.x)}" x2="${X(cur.x)}" y1="${t}" y2="${H - b}" stroke="var(--muted)" stroke-dasharray="3 3"/><circle cx="${X(cur.x)}" cy="${Y(cur.y)}" r="4.5" fill="var(--chart-line)" stroke="var(--panel)" stroke-width="2"/><text x="${Math.min(X(cur.x) + 8, W - r - 70)}" y="${Math.max(Y(cur.y) - 8, t + 10)}" style="fill:var(--ink)">${fmt(cur.y, 1)} kN</text>` : '';
+  const mark = cur.y !== null ? `<line x1="${X(cur.x)}" x2="${X(cur.x)}" y1="${t}" y2="${H - b}" stroke="var(--muted)" stroke-dasharray="3 3"/><circle cx="${X(cur.x)}" cy="${Y(cur.y)}" r="4.5" fill="var(--chart-line)" stroke="var(--panel)" stroke-width="2"/><text x="${Math.min(X(cur.x) + 8, W - r - 70)}" y="${Math.max(Y(cur.y) - 8, t + 10)}" style="fill:var(--ink)">${fmt(cur.y, 1)} ${uLbl('kN')}</text>` : '';
   $('chart').innerHTML = `<div class="tblwrap"><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Load against ${esc(sel.options[sel.selectedIndex].text)}"><path d="${area}" fill="var(--accent-soft)"/>${grid}<path d="${d}" fill="none" stroke="var(--chart-line)" stroke-width="2"/>${mark}<text x="${W - r}" y="${H - 2}" text-anchor="end">${esc(sel.options[sel.selectedIndex].text)} →  (dashed line = current value)</text></svg></div>`;
 }
 
@@ -376,7 +384,7 @@ if (canSave) {
     const r = await fetch('/api/calculations/' + state.saved.id + '/versions');
     const vs = await r.json();
     if (!r.ok) { $('versions').innerHTML = `<p class="small err">${esc(vs.error)}</p>`; return; }
-    $('versions').innerHTML = vs.map((v, i) => `<div class="ver"><span>${esc(when(v.created_at))} · ${esc(v.edited_by_name || '')}<br><span class="muted">${esc(PROCS[v.process - 1])} · ${esc(v.material)} · F <span class="num">${fmt((v.summary || {}).F, 1)}</span> kN</span></span>${i === 0 ? '<span class="chip">current</span>' : `<button class="btn sm" type="button" data-v="${i}">Restore</button>`}</div>`).join('');
+    $('versions').innerHTML = vs.map((v, i) => `<div class="ver"><span>${esc(when(v.created_at))} · ${esc(v.edited_by_name || '')}<br><span class="muted">${esc(PROCS[v.process - 1])} · ${esc(v.material)} · F <span class="num">${qty((v.summary || {}).F, 'kN', 1)}</span> ${uLbl('kN')}</span></span>${i === 0 ? '<span class="chip">current</span>' : `<button class="btn sm" type="button" data-v="${i}">Restore</button>`}</div>`).join('');
     $('versions').querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => {
       const v = vs[+b.dataset.v];
       const keep = state.saved;
@@ -401,7 +409,19 @@ if (canSave) {
   window.addEventListener('beforeunload', e => { if (state.dirty && state.saved) { e.preventDefault(); e.returnValue = ''; } });
 }
 
+// ---------------------------------------------------------------- unit switch
+function drawUnits() {
+  $('m3dGrid').textContent = U.system === 'imperial' ? 'Floor grid: ½ in squares.' : 'Floor grid: 10 mm squares.';
+  drawMatTable();
+  const res = state.res;
+  if (!res) return;
+  buildForm(res); state.formKey = key();
+  drawSensSelect(res); drawAuto(res); drawResults(res); draw3d();
+}
+window.addEventListener('sf-units', drawUnits);
+
 // ---------------------------------------------------------------- start
+$('m3dGrid').textContent = U.system === 'imperial' ? 'Floor grid: ½ in squares.' : 'Floor grid: 10 mm squares.';
 drawMatSelect();
 if (BOOT.saved && canSave) adopt(BOOT.saved, true);
 else { if (canSave) drawSaveState(); render(); }

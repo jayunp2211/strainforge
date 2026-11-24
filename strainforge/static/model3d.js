@@ -202,10 +202,10 @@ export function mount(el) {
   }
 
   let lastSig = '';
-  function update(shape, vals, proc) {
+  function update(shape, vals, proc, cell = 10) {
     const f = SHAPES[shape];
     if (!f) return [];
-    const sig = proc + '/' + shape + JSON.stringify(vals);
+    const sig = proc + '/' + shape + '/' + cell + JSON.stringify(vals);
     const model = f(vals, proc);
     if (sig === lastSig) return model.notes;
     lastSig = sig;
@@ -218,9 +218,9 @@ export function mount(el) {
     before.position.x = -(wa / 2 + gap / 2); after.position.x = wb / 2 + gap / 2;
     before.position.y -= bb.min.y; after.position.y -= ba.min.y;
     group.add(before, after);
-    // 10 mm floor grid for scale
-    const span = Math.ceil((Math.max(wb + wa + gap, 30) * 1.4) / 20) * 20;
-    const grid = new THREE.GridHelper(span, span / 10, 0x9aa8b5, 0xd5dde4);
+    // floor grid for scale: `cell` mm squares (10 mm, or 12.7 mm = ½ in)
+    const span = Math.ceil((Math.max(wb + wa + gap, 30) * 1.4) / (2 * cell)) * 2 * cell;
+    const grid = new THREE.GridHelper(span, Math.round(span / cell), 0x9aa8b5, 0xd5dde4);
     grid.position.y = -0.01; group.add(grid);
     // frame both parts
     const box = new THREE.Box3().setFromObject(before).union(new THREE.Box3().setFromObject(after)), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());

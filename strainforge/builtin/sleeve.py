@@ -4,7 +4,7 @@ Follows the original workbook cell for cell, with two corrections taken from the
 reference training method:
   * Assembly force uses (µ + tan α); the workbook's cell referenced an empty cell
     instead of tan α, so it dropped the taper term.
-  * Short sleeves use α = 2.5° (the workbook's note said 3°).
+  * Short sleeves use α = 3°, the industry norm (the training method says 2.5°).
 
 Units: mm, N/mm², kN, degrees.
 """
@@ -25,7 +25,7 @@ INPUTS = [
     {"key": "B", "label": "ØB sleeve OD", "unit": "mm", "group": "dims", "hint": "Large end of the taper, equal to the case bore. At most A/2"},
     {"key": "D", "label": "ØD insert bore", "unit": "mm", "group": "dims", "hint": "Product diameter after assembly"},
     {"key": "L", "label": "L sleeve length", "unit": "mm", "group": "dims"},
-    {"key": "alpha", "label": "α taper angle", "unit": "°", "group": "dims", "hint": "About 2.5° for short sleeves, 0.5° for long sleeves"},
+    {"key": "alpha", "label": "α taper angle", "unit": "°", "group": "dims", "hint": "About 3° for short sleeves, 0.5° for long sleeves"},
     {"key": "C", "label": "ØC insert OD", "unit": "mm", "group": "dims", "placeholder": "auto",
      "hint": "Leave empty to use the optimum k·√(A·D), or enter your rounded size"},
     {"key": "insert", "label": "Insert material", "kind": "select", "options": list(INSERT), "group": "mat"},
@@ -42,7 +42,7 @@ INPUTS = [
     {"key": "mud", "label": "µ disassembling", "unit": "", "group": "mat", "hint": "Friction while pressing out (≈ 0.1)"},
 ]
 
-EXAMPLE = {"A": 60, "B": 30, "D": 10, "L": 50, "alpha": 2.5, "C": None, "insert": "Carbide",
+EXAMPLE = {"A": 60, "B": 30, "D": 10, "L": 50, "alpha": 3, "C": None, "insert": "Carbide",
            "E1": 210000, "E2": None, "E3": 210000, "m1": 3.33, "m2": None, "k": 0.85, "z": 0.7,
            "mua": 0.03, "mud": 0.1}
 
@@ -72,7 +72,7 @@ NOTES = [
     ("Assembly force includes the taper.",
      "F assemble = pB·B·L·(µ + tan α)·π/1000. The original sheet referenced an empty cell in place of tan α, "
      "which gave only the friction part. With the example values that is 72.6 kN instead of 178.3 kN."),
-    ("Taper angle.", "Use about 2.5° for short sleeves and 0.5° for long sleeves."),
+    ("Taper angle.", "Use about 3° for short sleeves and 0.5° for long sleeves."),
     ("Poisson number.", "m is 1/ν: 3.33 for steel (ν = 0.30) and 4.25 for carbide (ν ≈ 0.235)."),
     ("Insert bore before pressing in.",
      "The ΔD formula is the theoretical shrink. In practice the bore is ground 0.4 % oversize for carbide "
@@ -112,7 +112,7 @@ def calculate(values: dict) -> dict:
     missing = [lbl for key, lbl in (("A", "ØA"), ("B", "ØB"), ("D", "ØD"), ("L", "L"), ("alpha", "α")) if not v[key] or v[key] <= 0]
     if missing:
         out["warnings"].append("Enter " + ", ".join(missing) + " to calculate")
-        out["figures"] = drawings(A or 60, B or 30, None, D or 10, L or 50, al or 2.5)
+        out["figures"] = drawings(A or 60, B or 30, None, D or 10, L or 50, al or 3)
         return out
     if not (0 < al < 30):
         out["warnings"].append("The taper angle must be between 0° and 30°")
@@ -187,8 +187,8 @@ def calculate(values: dict) -> dict:
         f"{_f(b_small)} mm", f"> {_f(C)} mm")
     chk(Fd > 0, "Sleeve stays put", "With tan α above µ disassembling the sleeve could push itself out.",
         f"tan α = {tg:.4f}", f"< µ = {v['mud']:g}", warn=True)
-    chk(0.5 - 1e-9 <= al <= 2.5 + 1e-9, "Taper angle", "Usual range from 0.5° (long sleeves) to 2.5° (short sleeves).",
-        f"{al:g}°", "0.5° to 2.5°", warn=True)
+    chk(0.5 - 1e-9 <= al <= 3 + 1e-9, "Taper angle", "Usual range from 0.5° (long sleeves) to 3° (short sleeves).",
+        f"{al:g}°", "0.5° to 3°", warn=True)
     if any(c["state"] == "bad" for c in out["checks"]):
         out["warnings"] = [c["title"] + " is outside its limit" for c in out["checks"] if c["state"] == "bad"]
 

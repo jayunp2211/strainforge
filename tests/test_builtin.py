@@ -73,3 +73,11 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
     print("ok")
+
+
+def test_sleeve_three_degrees_is_in_range():
+    # 3° is the industry norm for short sleeves, so it must not raise the taper-angle warning
+    r = calculate({"A": 60, "B": 30, "D": 10, "L": 50, "alpha": 3, "insert": "Carbide"})
+    assert next(c for c in r["checks"] if c["title"] == "Taper angle")["state"] == "ok"
+    r = calculate({"A": 60, "B": 30, "D": 10, "L": 50, "alpha": 3.5, "insert": "Carbide"})
+    assert next(c for c in r["checks"] if c["title"] == "Taper angle")["state"] == "warn"

@@ -86,10 +86,10 @@ function drawFigs() {
   const proc = document.querySelector(`#rail .proc[data-p="${p}"] .thumb`).innerHTML;
   const figs = [`<figure tabindex="0" title="Click to enlarge">${proc}<figcaption>${esc(PROCS[p - 1])}: tooling</figcaption></figure>`];
   if (SHAPE_DRAW[s]) figs.push(`<figure tabindex="0" title="Click to enlarge">${SHAPE_DRAW[s]}<figcaption>${esc(BOOT.shapeNames[s])}: before and after</figcaption></figure>`);
-  if (figIdx >= figs.length) figIdx = 0;
+  if (figIdx === 1 && figs.length < 2) figIdx = 0;
   $('figs').innerHTML = figs.map((f, i) => f.replace('<figure ', `<figure data-i="${i}" ${i === figIdx ? '' : 'hidden '}`)).join('');
   $('tabPart').disabled = figs.length < 2;
-  ['tabTool', 'tabPart'].forEach((t, i) => $(t).setAttribute('aria-selected', String(i === figIdx)));
+  showFig(figIdx);
   $('figs').querySelectorAll('text.dt').forEach(t => {
     t.dataset.k = '|' + t.textContent.split('/').map(dimKey).join('|') + '|';
     t.setAttribute('role', 'button');
@@ -100,7 +100,29 @@ function drawFigs() {
 function showFig(i) {
   figIdx = i;
   $('figs').querySelectorAll('figure').forEach(f => { f.hidden = +f.dataset.i !== i; });
-  ['tabTool', 'tabPart'].forEach((t, n) => $(t).setAttribute('aria-selected', String(n === i)));
+  ['tabTool', 'tabPart', 'tab3d'].forEach((t, n) => $(t).setAttribute('aria-selected', String(n === i)));
+  $('m3d').hidden = i !== 2;
+  $('figs').hidden = i === 2;
+  document.querySelector('.figtip').hidden = i === 2;
+  if (i === 2) draw3d();
+}
+
+// 3D view: loaded on first use (three.js is large), then redrawn whenever inputs change.
+let m3d = null, m3dLoading = null;
+function draw3d() {
+  if ($('m3d').hidden) return;
+  if (!m3d) {
+    if (!m3dLoading) {
+      m3dLoading = import('/static/model3d.js?v=' + BOOT.assetVersion)
+        .then(mod => { $('m3dMsg').remove(); m3d = mod.mount($('m3dView')); draw3d(); })
+        .catch(() => { $('m3dMsg').textContent = 'The 3D view could not load in this browser.'; });
+    }
+    return;
+  }
+  const vals = {};
+  for (const [k, v] of Object.entries(curInputs())) if (typeof v === 'number') vals[k] = v;
+  const notes = m3d.update(state.shape[state.p], vals, state.p) || [];
+  $('m3dNotes').textContent = notes.join(' ');
 }
 
 function highlightDim(k) {
@@ -111,11 +133,11 @@ function highlightDim(k) {
     t.classList.toggle('hl', on);
     if (on) { const i = +t.closest('figure').dataset.i; if (i === figIdx) hitShown = true; else hitOther = i; }
   });
-  if (!hitShown && hitOther >= 0) showFig(hitOther);
+  if (!hitShown && hitOther >= 0 && figIdx !== 2) showFig(hitOther);
   $('vars').querySelectorAll('.field[data-k]').forEach(f => f.classList.toggle('hl', !!k && f.dataset.k === k));
 }
 
-['tabTool', 'tabPart'].forEach((t, i) => $(t).addEventListener('click', () => showFig(i)));
+['tabTool', 'tabPart', 'tab3d'].forEach((t, i) => $(t).addEventListener('click', () => showFig(i)));
 $('figs').addEventListener('click', e => {
   const t = e.target.closest('text.dt');
   if (t) {
@@ -205,6 +227,7 @@ async function run() {
   if (!res.sweep && state.sweep !== ($('sensVar').value || null)) { state.sweep = $('sensVar').value || null; if (state.sweep) { calc(); } }
   drawAuto(res);
   drawResults(res);
+  draw3d();
 }
 
 function drawResults(res) {

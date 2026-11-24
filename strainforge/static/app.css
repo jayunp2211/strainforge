@@ -439,3 +439,4 @@ a:focus-visible, summary:focus-visible, textarea:focus-visible, [tabindex]:not([
 @media (min-width: 1200px) {
   .b-res { position: sticky; top: 78px; align-self: start; max-height: calc(100vh - 94px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-bottom: 2px; }
 }
+#tables:empty { display: none; }

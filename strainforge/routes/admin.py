@@ -6,7 +6,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from .. import config, db
+from .. import builtin, config, db
 from ..calc import PROCESSES
 from ..formula import EXAMPLE, FormulaError, clean_spec, run
 from .common import (
@@ -46,7 +46,8 @@ def dashboard(request: Request):
         "days": [{"label": r["day"].strftime("%d %b"), "views": r["views"]} for r in st["days"]],
     }
     return page(request, "dashboard.html", s, st=st, k=k, growth=growth, charts=_boot(charts),
-                by_process=[{"name": PROCESSES[r["process"] - 1] if 1 <= r["process"] <= len(PROCESSES) else "?",
+                by_process=[{"name": (builtin.TOOLS[r["tool"]]["title"] if r.get("tool") in builtin.TOOLS else r.get("tool"))
+                             if r.get("tool") else (PROCESSES[r["process"] - 1] if 1 <= r["process"] <= len(PROCESSES) else "?"),
                              "n": r["n"], "pct": r["n"] / proc_total * 100} for r in st["by_process"]],
                 tools=db.tools(published_only=False), price_personal=config.PRICE_PERSONAL_CENTS / 100,
                 price_team=config.PRICE_TEAM_CENTS / 100, team_seats=config.TEAM_INCLUDED_SEATS,

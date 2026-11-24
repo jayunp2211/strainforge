@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ t.title }} calculator · Strainforge{% endblock %}
+{% block title %}{% if saved %}{{ saved.title }}{% else %}{{ t.title }} calculator{% endif %} · Strainforge{% endblock %}
 {% block description %}{{ t.summary }}{% endblock %}
-{% block robots %}index{% endblock %}
+{% block robots %}{% if saved %}noindex{% else %}index{% endif %}{% endblock %}
 {% block head %}<style>{{ svg_css|safe }}</style>{% endblock %}
 {% block body %}
 {{ svg_defs|safe }}
@@ -15,6 +15,25 @@
 
 <div class="bench">
   <div class="stack b-top">
+    <div class="panel" id="savePanel">
+      {% if s.signed_in and s.ws %}
+      <div class="savebar">
+        <div class="phead" style="margin-bottom:0"><h2>Save to {{ s.ws.name }}</h2><span class="eyebrow" id="saveState"></span></div>
+        <div class="row">
+          <input class="tf" id="calcTitle" maxlength="120" placeholder="Name this result, e.g. M10 header die, station 3" aria-label="Result name">
+          <button class="btn primary" type="button" id="btnSave">Save</button>
+          <button class="btn" type="button" id="btnSaveNew" hidden>Save as copy</button>
+          <a class="btn" href="/tools/{{ t.slug }}" id="btnNew" hidden>New</a>
+        </div>
+        <details class="drawer" id="notesBox"><summary>Notes</summary><textarea class="tf" id="calcNotes" maxlength="4000" placeholder="Part number, press, station, assumptions…" style="margin-top:8px"></textarea></details>
+        <div class="savemeta" id="saveMeta"></div>
+      </div>
+      {% else %}
+      <div class="phead" style="margin-bottom:6px"><h2>Save this result</h2></div>
+      <p class="sub small" style="margin:0 0 10px">The tool is free to use. Create a free account to save results to your history and share them with your team.</p>
+      <div class="row-actions" style="margin-top:0"><a class="btn primary" href="/signup?next=/tools/{{ t.slug }}" id="signupSave">Create free account</a><a class="btn" href="/login?next=/tools/{{ t.slug }}" id="loginSave">Sign in</a></div>
+      {% endif %}
+    </div>
     <div class="panel">
       <div class="phead"><h2>Quick start</h2><span class="chip ex" id="exChip" hidden>Example values</span></div>
       <p class="sub small" style="margin:0">Enter the dimensions from your drawing; the material values are already filled in. Results update as you type. The link in your address bar keeps your inputs, so you can bookmark or share it.</p>
@@ -55,6 +74,7 @@
       <div class="phead"><h2>Design checks</h2><span class="eyebrow">Limits</span></div>
       <div class="checks" id="checks"></div>
     </div>
+    {% set report_title = saved.title if saved else t.title %}{% set report_tool = t.slug %}{% include "_report.html" %}
   </div>
 </div>
 
@@ -82,4 +102,4 @@
 <script type="application/json" id="boot">{{ boot|safe }}</script>
 <dialog class="figdlg" id="figDlg" aria-label="Enlarged drawing"><div class="figdlg-in" id="figDlgBody"></div><form method="dialog"><button class="btn" type="submit">Close</button></form></dialog>
 {% endblock %}
-{% block scripts %}<script src="/static/builtin.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}
+{% block scripts %}<script src="/static/builtin.js?v={{ config.ASSET_VERSION }}"></script><script src="/static/report.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

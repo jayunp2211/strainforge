@@ -16,12 +16,12 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import config, db
-from .routes import admin, auth, calculator, materials, team, tools
+from .routes import admin, auth, calculator, materials, reports, team, tools
 from .routes.common import HERE, flash_redirect, load_session, page
 
 app = FastAPI(title="Strainforge", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
-for r in (calculator, auth, team, materials, tools, admin):
+for r in (calculator, auth, team, materials, tools, reports, admin):
     app.include_router(r.router)
 
 

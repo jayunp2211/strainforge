@@ -13,7 +13,8 @@
     <input type="search" name="q" value="{{ q }}" placeholder="Search by name, material or notes" aria-label="Search">
     <select name="process" aria-label="Process" onchange="this.form.submit()">
       <option value="0">All processes</option>
-      {% for p in PROCESSES %}<option value="{{ loop.index }}" {% if process == loop.index %}selected{% endif %}>{{ p }}</option>{% endfor %}
+      <optgroup label="Main calculator">{% for p in PROCESSES %}<option value="{{ loop.index }}" {% if process == loop.index|string %}selected{% endif %}>{{ p }}</option>{% endfor %}</optgroup>
+      <optgroup label="Tools">{% for slug, t in tools.items() %}<option value="t:{{ slug }}" {% if process == 't:' ~ slug %}selected{% endif %}>{{ t.title }}</option>{% endfor %}</optgroup>
     </select>
     {% if s.ws and s.ws.kind == 'team' %}
     <label class="small"><input type="checkbox" name="mine" value="1" {% if mine %}checked{% endif %} onchange="this.form.submit()"> Only mine</label>
@@ -27,11 +28,17 @@
     <tbody>
     {% for r in rows %}
       <tr id="row-{{ r.id }}">
-        <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="/calculator?calc={{ r.id }}">{{ r.title }}</a>{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
+        <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="{% if r.tool %}/tools/{{ r.tool }}{% else %}/calculator{% endif %}?calc={{ r.id }}">{{ r.title }}</a>{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
+        {% if r.tool %}
+        <td>{{ tools[r.tool].title if r.tool in tools else r.tool }}<div class="small muted">Tool</div></td>
+        <td>—</td>
+        <td class="v" colspan="2">{% for k in (r.summary.kpis or [])[:1] %}<div class="small muted">{{ k.label }}</div>{% if k.value is number %}<span data-qty="{{ k.value }}" data-unit="{{ k.unit }}" data-d="1">{{ k.value|num(1) }}</span> <span class="muted" data-unit-label="{{ k.unit }}">{{ k.unit }}</span>{% else %}{{ k.text or '—' }}{% endif %}{% else %}—{% endfor %}</td>
+        {% else %}
         <td>{{ PROCESSES[r.process - 1] }}<div class="small muted">{{ SHAPE_NAMES[r.shape] }}</div></td>
         <td>{{ r.material }}</td>
         <td class="v"><span data-qty="{{ r.summary.F }}" data-unit="kN" data-d="1">{{ r.summary.F|num(1) }}</span> <span class="muted" data-unit-label="kN">kN</span></td>
         <td class="v">{% if r.summary.W is not none %}<span data-qty="{{ r.summary.W }}" data-unit="kJ" data-d="3">{{ r.summary.W|num(3) }}</span> <span class="muted" data-unit-label="kJ">kJ</span>{% else %}—{% endif %}</td>
+        {% endif %}
         <td class="small">{{ r.updated_at|when }}<div class="muted">{{ r.updated_by_name or r.created_by_name }}</div></td>
         <td>{% if s.is_admin or (r.created_by|string) == s.user_id %}<button class="btn sm danger" type="button" data-del="{{ r.id }}" data-title="{{ r.title }}">Delete</button>{% endif %}</td>
       </tr>
@@ -41,7 +48,7 @@
   </div>
   {% else %}
   <div class="empty">
-    {% if q or process or mine %}Nothing matches that search.{% else %}No saved calculations yet. Open the <a href="/calculator">calculator</a>, enter your dimensions and press <b>Save</b>.{% endif %}
+    {% if q or process != '0' or mine %}Nothing matches that search.{% else %}No saved calculations yet. Open the <a href="/calculator">calculator</a> or one of the <a href="/tools">tools</a>, enter your dimensions and press <b>Save</b>.{% endif %}
   </div>
   {% endif %}
 </div>

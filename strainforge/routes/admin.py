@@ -35,7 +35,7 @@ def dashboard(request: Request):
     s, redirect = _owner(request)
     if redirect:
         return redirect
-    st = db.owner_stats(config.PRICE_BASE_CENTS, config.PRICE_SEAT_CENTS, config.SITE_ADMIN_EMAILS)
+    st = db.owner_stats(config.PRICE_PERSONAL_CENTS, config.team_price_cents, config.SITE_ADMIN_EMAILS)
     k = st["k"]
     growth = None
     if k["users_prev_30"]:
@@ -48,7 +48,8 @@ def dashboard(request: Request):
     return page(request, "dashboard.html", s, st=st, k=k, growth=growth, charts=_boot(charts),
                 by_process=[{"name": PROCESSES[r["process"] - 1] if 1 <= r["process"] <= len(PROCESSES) else "?",
                              "n": r["n"], "pct": r["n"] / proc_total * 100} for r in st["by_process"]],
-                tools=db.tools(published_only=False), price_base=config.PRICE_BASE_CENTS / 100,
+                tools=db.tools(published_only=False), price_personal=config.PRICE_PERSONAL_CENTS / 100,
+                price_team=config.PRICE_TEAM_CENTS / 100, team_seats=config.TEAM_INCLUDED_SEATS,
                 price_seat=config.PRICE_SEAT_CENTS / 100, billing=config.BILLING_ENABLED)
 
 

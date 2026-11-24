@@ -107,9 +107,9 @@
       {% else %}
       <div class="phead"><h2>Plan</h2><span class="chip">Early access</span></div>
       {% if s.ws and s.ws.kind == 'team' %}
-      <p class="sub small" style="margin:0">Team plan: $15/month including the admin, plus $10/month for each extra seat. With {{ seats }} {{ 'seat' if seats == 1 else 'seats' }} that would be <b>${{ '%.0f'|format(price) }}/month</b>.</p>
+      <p class="sub small" style="margin:0">Team plan: $49.99/month for up to 3 engineers including the admin, plus $14.99/month for each extra engineer. With {{ seats }} {{ 'engineer' if seats == 1 else 'engineers' }} that would be <b>${{ '%.2f'|format(price) }}/month</b>, or <b>${{ '{:,.0f}'.format(price_year) }}/year</b> paid yearly (one month free).</p>
       {% else %}
-      <p class="sub small" style="margin:0">Personal plan: $15/month.</p>
+      <p class="sub small" style="margin:0">Personal plan: $19.99/month, or $219/year paid yearly (one month free).</p>
       {% endif %}
       <p class="sub small">Billing isn't switched on yet, so every feature is free during early access. <a href="/pricing">See pricing</a></p>
       {% endif %}

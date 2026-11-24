@@ -41,7 +41,9 @@ async def headers_and_csrf(request: Request, call_next):
     resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
     resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
     if request.url.path.startswith("/static/"):
-        resp.headers.setdefault("Cache-Control", "public, max-age=86400")
+        # Versioned URLs (?v=<deploy>) never change, so they can be cached for a year.
+        long = request.query_params.get("v") == config.ASSET_VERSION and config.ASSET_VERSION != "dev"
+        resp.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable" if long else "public, max-age=3600")
     elif resp.headers.get("content-type", "").startswith("text/html"):
         resp.headers.setdefault("Cache-Control", "no-store")
     return resp

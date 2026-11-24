@@ -33,4 +33,4 @@
 </div>
 <script type="application/json" id="boot">{{ boot|safe }}</script>
 {% endblock %}
-{% block scripts %}<script src="/static/tool.js?v=5"></script>{% endblock %}
+{% block scripts %}<script src="/static/tool.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

@@ -120,4 +120,4 @@
 </section>
 <script type="application/json" id="charts">{{ charts|safe }}</script>
 {% endblock %}
-{% block scripts %}<script src="/static/dashboard.js?v=5"></script>{% endblock %}
+{% block scripts %}<script src="/static/dashboard.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

@@ -53,6 +53,16 @@
       <div class="field"><span class="lbl">Yield stress kf</span><div class="ro" id="roKf">—</div></div>
       <div class="field"><span class="lbl">Work hardening n</span><div class="ro" id="roN">—</div></div>
     </div>
+    <div class="panel figpanel">
+      <div class="phead"><h2>Drawing</h2>
+        <div class="figtabs" role="tablist" aria-label="Drawing">
+          <button type="button" role="tab" id="tabTool" data-fig="0" aria-selected="true">Tooling</button>
+          <button type="button" role="tab" id="tabPart" data-fig="1" aria-selected="false">Part</button>
+        </div>
+      </div>
+      <div class="figs" id="figs"></div>
+      <p class="hint small muted figtip">Click a dimension or an input below to see which is which. Click the drawing to enlarge it.</p>
+    </div>
     <div class="panel">
       <div class="phead"><h2>Variables</h2><span class="eyebrow" id="varCount"></span></div>
       <div id="autoVals"></div>
@@ -62,7 +72,6 @@
         <button class="btn" type="button" id="btnClear">Clear inputs</button>
       </div>
     </div>
-    <div class="figs" id="figs"></div>
   </div>
 
   <div class="stack">
@@ -114,5 +123,6 @@
 </section>
 <script type="application/json" id="boot">{{ boot|safe }}</script>
 <script type="application/json" id="shapeDraw">{{ shape_draw|tojson }}</script>
+<dialog class="figdlg" id="figDlg" aria-label="Enlarged drawing"><div class="figdlg-in" id="figDlgBody"></div><form method="dialog"><button class="btn" type="submit">Close</button></form></dialog>
 {% endblock %}
 {% block scripts %}<script src="/static/calc.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

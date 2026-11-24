@@ -75,12 +75,66 @@ function render() {
   calc();
 }
 
+// ---------------------------------------------------------------- drawings
+// One large drawing at a time (tooling or part). Dimension labels and inputs are linked:
+// focusing an input highlights its dimension, clicking a dimension jumps to its input.
+const dimKey = s => String(s || '').toLowerCase().replace(/\s+/g, '').replace(/^ho$/, 'h0');
+let figIdx = 0, figKeys = '';
+
 function drawFigs() {
   const p = state.p, s = state.shape[p];
   const proc = document.querySelector(`#rail .proc[data-p="${p}"] .thumb`).innerHTML;
-  $('figs').innerHTML = `<figure>${proc}<figcaption>${esc(PROCS[p - 1])}: tooling</figcaption></figure>` +
-    (SHAPE_DRAW[s] ? `<figure>${SHAPE_DRAW[s]}<figcaption>${esc(BOOT.shapeNames[s])}: before → after</figcaption></figure>` : '');
+  const figs = [`<figure tabindex="0" title="Click to enlarge">${proc}<figcaption>${esc(PROCS[p - 1])}: tooling</figcaption></figure>`];
+  if (SHAPE_DRAW[s]) figs.push(`<figure tabindex="0" title="Click to enlarge">${SHAPE_DRAW[s]}<figcaption>${esc(BOOT.shapeNames[s])}: before and after</figcaption></figure>`);
+  if (figIdx >= figs.length) figIdx = 0;
+  $('figs').innerHTML = figs.map((f, i) => f.replace('<figure ', `<figure data-i="${i}" ${i === figIdx ? '' : 'hidden '}`)).join('');
+  $('tabPart').disabled = figs.length < 2;
+  ['tabTool', 'tabPart'].forEach((t, i) => $(t).setAttribute('aria-selected', String(i === figIdx)));
+  $('figs').querySelectorAll('text.dt').forEach(t => {
+    t.dataset.k = '|' + t.textContent.split('/').map(dimKey).join('|') + '|';
+    t.setAttribute('role', 'button');
+  });
+  highlightDim(figKeys);
 }
+
+function showFig(i) {
+  figIdx = i;
+  $('figs').querySelectorAll('figure').forEach(f => { f.hidden = +f.dataset.i !== i; });
+  ['tabTool', 'tabPart'].forEach((t, n) => $(t).setAttribute('aria-selected', String(n === i)));
+}
+
+function highlightDim(k) {
+  figKeys = k;
+  let hitShown = false, hitOther = -1;
+  $('figs').querySelectorAll('text.dt').forEach(t => {
+    const on = !!k && t.dataset.k.includes('|' + k + '|');
+    t.classList.toggle('hl', on);
+    if (on) { const i = +t.closest('figure').dataset.i; if (i === figIdx) hitShown = true; else hitOther = i; }
+  });
+  if (!hitShown && hitOther >= 0) showFig(hitOther);
+  $('vars').querySelectorAll('.field[data-k]').forEach(f => f.classList.toggle('hl', !!k && f.dataset.k === k));
+}
+
+['tabTool', 'tabPart'].forEach((t, i) => $(t).addEventListener('click', () => showFig(i)));
+$('figs').addEventListener('click', e => {
+  const t = e.target.closest('text.dt');
+  if (t) {
+    const keys = t.dataset.k.split('|').filter(Boolean);
+    const field = [...$('vars').querySelectorAll('.field[data-k]')].find(f => keys.includes(f.dataset.k));
+    if (field) { highlightDim(field.dataset.k); field.querySelector('input,select')?.focus(); }
+    else highlightDim(keys[0]);
+    return;
+  }
+  const fig = e.target.closest('figure');
+  if (fig) openFig(fig);
+});
+$('figs').addEventListener('keydown', e => { const fig = e.target.closest('figure'); if (fig && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openFig(fig); } });
+function openFig(fig) {
+  const dlg = $('figDlg');
+  $('figDlgBody').innerHTML = fig.innerHTML;
+  if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+}
+$('figDlg').addEventListener('click', e => { if (e.target === $('figDlg')) $('figDlg').close(); });
 
 // ---------------------------------------------------------------- variables form
 function buildForm(res) {
@@ -98,9 +152,10 @@ function buildForm(res) {
       ctl = `<input id="${id}" data-a="${x.cell}" inputmode="decimal" value="${val == null ? '' : esc(val)}" placeholder="${ph}">`;
     }
     const extra = x.k1 ? `<div class="hint" id="k1hint"></div>` : '';
-    html += `<div class="field"><label for="${id}">${esc(x.label)}</label><div class="ctl">${ctl}<span class="unit">${esc(x.unit)}</span></div>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}${extra}</div>`;
+    html += `<div class="field" data-k="${esc(dimKey(x.label))}"><label for="${id}">${esc(x.label)}</label><div class="ctl">${ctl}<span class="unit">${esc(x.unit)}</span></div>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}${extra}</div>`;
   }
   $('vars').innerHTML = html;
+  highlightDim(figKeys);
   $('varCount').textContent = rows.length + ' inputs';
   $('vars').querySelectorAll('[data-a]').forEach(el => {
     el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
@@ -327,4 +382,7 @@ if (canSave) {
 drawMatSelect();
 if (BOOT.saved && canSave) adopt(BOOT.saved, true);
 else { if (canSave) drawSaveState(); render(); }
+$('vars').addEventListener('focusin', e => { const f = e.target.closest('.field[data-k]'); if (f) highlightDim(f.dataset.k); });
+$('vars').addEventListener('mouseover', e => { const f = e.target.closest('.field[data-k]'); if (f) highlightDim(f.dataset.k); });
+$('vars').addEventListener('mouseleave', () => { const f = document.activeElement?.closest?.('#vars .field[data-k]'); highlightDim(f ? f.dataset.k : ''); });
 })();

@@ -10,6 +10,8 @@ const IMP = {
   'N/mm²': ['ksi', 0.1450377377],
   'Nmm/mm³': ['in·kip/in³', 0.1450377377],
   'kN': ['tonf', 1 / 8.896443230521],
+  'N': ['lbf', 1 / 4.4482216152605],
+  'N/mm': ['lbf/in', 25.4 / 4.4482216152605],
   'kJ': ['ft·lbf', 737.5621493],
 };
 const KEY = 'sf-units';
@@ -40,7 +42,7 @@ const U = {
   /** Rewrite "12.50 mm" style text (check descriptions and limits) in the chosen system. */
   text(s) {
     if (!imp() || typeof s !== 'string') return s;
-    return s.replace(/(-?\d[\d,]*(?:\.\d+)?)\s?(mm³|mm²|mm|kN|kJ|N\/mm²)(?![\w²³/])/g, (m, num, u) => {
+    return s.replace(/(-?\d[\d,]*(?:\.\d+)?)\s?(mm³|mm²|mm|kN|kJ|N\/mm²|N\/mm|N)(?![\w²³/])/g, (m, num, u) => {
       const v = U.out(parseFloat(num.replace(/,/g, '')), u);
       return U.num(v) + ' ' + U.unit(u);
     });

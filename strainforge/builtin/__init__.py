@@ -4,9 +4,9 @@ Each module exposes TOOL: a dict with slug, title, summary, inputs (the form spe
 example (default values), calculate(values) -> result dict, and notes (method notes).
 The generic page (templates/builtin_tool.html + static/builtin.js) renders any of them.
 """
-from . import sleeve
+from . import disc_spring, sleeve
 
-TOOLS = {t["slug"]: t for t in (sleeve.TOOL,)}
+TOOLS = {t["slug"]: t for t in (sleeve.TOOL, disc_spring.TOOL)}
 
 
 def get(slug: str):

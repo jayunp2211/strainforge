@@ -3,14 +3,9 @@
 {% block description %}{{ t.summary or (t.title ~ ': a free cold forming calculator.') }}{% endblock %}
 {% block robots %}{% if t.published %}index{% else %}noindex{% endif %}{% endblock %}
 {% block body %}
-<div class="pagehead">
-  <div>
-    <span class="eyebrow"><a href="/tools">Tools</a></span>
-    <h1>{{ t.title }}</h1>
-    {% if t.summary %}<p class="sub">{{ t.summary }}</p>{% endif %}
-  </div>
-  {% if s.is_site_admin %}<div class="actions">{% if not t.published %}<span class="badge draft">Draft: only you can see this</span>{% endif %}<a class="btn" href="/admin/tools/{{ t.id }}">Edit calculator</a></div>{% endif %}
-</div>
+{% set head_title = t.title %}{% set head_sub = t.summary %}
+{% if s.is_site_admin %}{% set head_actions %}{% if not t.published %}<span class="badge draft">Draft: only you can see this</span>{% endif %}<a class="btn" href="/admin/tools/{{ t.id }}">Edit calculator</a>{% endset %}{% endif %}
+{% include "_toolhead.html" %}
 <div class="bench">
   <div class="stack">
     <div class="panel">

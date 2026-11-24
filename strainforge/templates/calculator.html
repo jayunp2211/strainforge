@@ -6,7 +6,8 @@
 {% endblock %}
 {% block body %}
 {{ svg_defs|safe }}
-<h1 class="sr-only">Cold forming force and energy calculator</h1>
+{% set head_title = 'Forming load & energy' %}{% set head_sub = 'Load, energy, deformation grade and tooling checks for all 10 processes and 16 product shapes.' %}
+{% include "_toolhead.html" %}
 <nav class="rail" id="rail" aria-label="Process">
   {% for name in PROCESSES %}
   <button class="proc" type="button" data-p="{{ loop.index }}" aria-pressed="false" title="{{ name }}">
@@ -27,6 +28,7 @@
           <button class="btn" type="button" id="btnSaveNew" hidden>Save as copy</button>
           <a class="btn" href="/calculator" id="btnNew" hidden>New</a>
         </div>
+        {% include "_projectpick.html" %}
         <details class="drawer" id="notesBox"><summary>Notes</summary><textarea class="tf" id="calcNotes" maxlength="4000" placeholder="Part number, press, station, assumptions…" style="margin-top:8px"></textarea></details>
         <div class="savemeta" id="saveMeta"></div>
         <div class="conflict" id="conflict" hidden></div>
@@ -136,4 +138,4 @@
 <script type="application/json" id="shapeDraw">{{ shape_draw|tojson }}</script>
 <dialog class="figdlg" id="figDlg" aria-label="Enlarged drawing"><div class="figdlg-in" id="figDlgBody"></div><form method="dialog"><button class="btn" type="submit">Close</button></form></dialog>
 {% endblock %}
-{% block scripts %}<script src="/static/calc.js?v={{ config.ASSET_VERSION }}"></script><script src="/static/report.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}
+{% block scripts %}<script src="/static/projects.js?v={{ config.ASSET_VERSION }}"></script><script src="/static/calc.js?v={{ config.ASSET_VERSION }}"></script><script src="/static/report.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

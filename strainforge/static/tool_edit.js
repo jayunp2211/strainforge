@@ -79,7 +79,7 @@
     document.querySelectorAll('[data-save]').forEach(x => { x.disabled = false; });
     if (!r.ok) { $('prevErr').hidden = false; $('prevErr').textContent = res.error || 'Could not save'; $('prevErr').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
     dirty = false;
-    location.href = '/admin/tools/' + res.id + '?msg=' + encodeURIComponent($('published').checked ? 'Saved. It is live at /tools/' + res.slug : 'Saved as a draft. Tick “Live for everyone” to publish it.');
+    location.href = '/admin/tools/' + res.id + '?msg=' + encodeURIComponent($('published').checked ? 'Saved. It is live at /calculator/' + res.slug : 'Saved as a draft. Tick “Live for everyone” to publish it.');
   }));
   addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   preview();

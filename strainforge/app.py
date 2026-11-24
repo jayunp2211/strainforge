@@ -95,9 +95,9 @@ def robots():
 def sitemap():
     from xml.sax.saxutils import escape as x
     from . import builtin
-    paths = ["/", "/tools", "/materials", "/pricing", *[f"/tools/{k}" for k in builtin.TOOLS]]
+    paths = ["/", "/calculator", "/materials", "/pricing", *[f"/calculator/{k}" for k in builtin.TOOLS]]
     try:
-        paths += [f"/tools/{t['slug']}" for t in tools.published_tools()]
+        paths += [f"/calculator/{t['slug']}" for t in tools.published_tools()]
     except Exception:  # the static pages are still worth listing if the database is briefly unreachable
         pass
     urls = "".join(f"<url><loc>{x(config.SITE_URL + p)}</loc></url>" for p in paths)

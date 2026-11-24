@@ -211,6 +211,7 @@ function drawSave() {
 }
 async function doSave(asNew, force) {
   const b = { title: $('calcTitle').value, notes: $('calcNotes').value, values: state.values };
+  try { Object.assign(b, window.SFProject.body()); } catch (e) { alert(e.message); return; }
   if (asNew && save.row) b.title = (b.title || save.row.title).replace(/( \(copy\))?$/, ' (copy)');
   const update = save.row && !asNew;
   if (update) { b.expected = save.row.updated_at; b.force = !!force; }
@@ -225,6 +226,7 @@ async function doSave(asNew, force) {
     }
     if (!r.ok) throw new Error(out.error || 'Could not save');
     save.row = out; save.dirty = false; BOOT.saved = out;
+    window.SFProject.adopt(out);
     $('calcTitle').value = out.title;
     drawSave();
     const q = new URLSearchParams(location.search); q.set('calc', out.id);
@@ -239,6 +241,7 @@ if (canSave) {
   $('btnSaveNew').addEventListener('click', () => doSave(true));
   $('calcTitle').addEventListener('input', touch);
   $('calcNotes').addEventListener('input', touch);
+  window.SFProject.onChange(touch);
   $('vars').addEventListener('input', touch);
   $('vars').addEventListener('change', touch);
   drawSave();

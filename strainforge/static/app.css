@@ -445,3 +445,52 @@ a:focus-visible, summary:focus-visible, textarea:focus-visible, [tabindex]:not([
   .b-res { position: sticky; top: 78px; align-self: start; max-height: calc(100vh - 94px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-bottom: 2px; }
 }
 #tables:empty { display: none; }
+
+/* title bar above every calculator: name of the tool + switcher for the others */
+.toolhead { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); margin: 0 0 16px; overflow: hidden; }
+.toolhead-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding: 14px 18px 12px; background: linear-gradient(120deg, var(--accent-soft), var(--panel) 55%); }
+.toolhead-main { min-width: 0; }
+.toolhead h1 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); margin-top: 2px; }
+.toolhead .sub { font-size: .9rem; margin-top: 4px; }
+.toolhead .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.crumbs { display: flex; gap: 6px; align-items: center; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); text-decoration: underline; }
+.tooltabs { display: flex; gap: 2px; overflow-x: auto; border-top: 1px solid var(--line); padding: 0 10px; scrollbar-width: thin; }
+.tooltabs a { padding: 10px 12px 9px; font-size: .86rem; font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+.tooltabs a:hover { color: var(--ink); }
+.tooltabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* project picker in the Save box */
+.projpick { display: grid; gap: 4px; }
+.projpick label { font-size: .84rem; font-weight: 600; color: var(--ink-2); }
+.projpick-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.projpick-row .tf { flex: 1 1 160px; }
+.projpick .hint { font-size: .8rem; }
+
+/* history: projects beside the saved calculations */
+.histlayout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .histlayout { grid-template-columns: minmax(0, 1fr); } }
+.projnav { padding: 10px; display: grid; gap: 2px; position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto; }
+@media (max-width: 900px) { .projnav { position: static; max-height: 320px; } }
+.pn-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: .9rem; font-weight: 500; min-width: 0; }
+.pn-item:hover { background: var(--panel-2); }
+.pn-item.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+.pn-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-when { display: block; font-size: .74rem; font-weight: 400; color: var(--muted); }
+.pn-n { font-family: var(--f-mono); font-size: .78rem; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; min-width: 26px; text-align: center; }
+.pn-item.on .pn-n { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.pn-ic { color: var(--muted); display: grid; place-items: center; flex: none; }
+.pn-item.on .pn-ic { color: var(--accent); }
+.pn-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px 6px; margin-top: 6px; border-top: 1px solid var(--line); }
+.pn-new { display: grid; gap: 8px; padding: 0 6px 8px; }
+.pn-new-row { display: flex; gap: 6px; }
+.pn-empty { color: var(--muted); font-size: .84rem; margin: 2px 10px 8px; }
+.pchip { display: inline-block; margin: 3px 0 0 15px; font-size: .72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); text-decoration: none; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pchip:hover { text-decoration: underline; }
+.movebox { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.movebox select, .movebox input { font: inherit; font-size: .84rem; padding: 5px 8px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); color: var(--ink); min-height: 32px; }
+.projdlg { border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: var(--panel); color: var(--ink); width: min(460px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.projdlg::backdrop { background: rgba(8,14,20,.55); }
+.projdlg form { display: grid; gap: 6px; }
+.projdlg h2 { margin-bottom: 8px; }

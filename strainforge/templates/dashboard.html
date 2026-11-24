@@ -103,11 +103,11 @@
   <div class="tblwrap"><table>
     <thead><tr><th>Calculator</th><th>Status</th><th style="text-align:right">Opens</th><th>Updated</th><th></th></tr></thead>
     <tbody>{% for t in tools %}<tr>
-      <td><a class="ttl" href="/admin/tools/{{ t.id }}">{{ t.title }}</a><div class="small muted">/tools/{{ t.slug }}</div></td>
+      <td><a class="ttl" href="/admin/tools/{{ t.id }}">{{ t.title }}</a><div class="small muted">/calculator/{{ t.slug }}</div></td>
       <td>{% if t.published %}<span class="badge live">Live</span>{% else %}<span class="badge draft">Draft</span>{% endif %}</td>
       <td class="v">{{ t.views }}</td><td class="small">{{ t.updated_at|when }}</td>
       <td style="white-space:nowrap;text-align:right">
-        <a class="btn sm" href="/tools/{{ t.slug }}">Open</a>
+        <a class="btn sm" href="/calculator/{{ t.slug }}">Open</a>
         <a class="btn sm" href="/admin/tools/{{ t.id }}">Edit</a>
         <form method="post" action="/admin/tools/{{ t.id }}/publish" class="inline"><input type="hidden" name="published" value="{{ 0 if t.published else 1 }}"><button class="btn sm" type="submit">{{ 'Hide' if t.published else 'Publish' }}</button></form>
         <form method="post" action="/admin/tools/{{ t.id }}/delete" class="inline" data-msg="Delete {{ t.title }}? This cannot be undone." onsubmit="return confirm(this.dataset.msg)"><button class="btn sm danger" type="submit">Delete</button></form>

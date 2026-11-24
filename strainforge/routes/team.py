@@ -55,6 +55,20 @@ def team_rename(request: Request, name: str = Form(...)):
     return flash_redirect("/team", msg="Workspace renamed.")
 
 
+@router.post("/team/delete")
+def team_delete(request: Request, confirm: str = Form("")):
+    s = load_session(request)
+    if not s.ws:
+        return need_login(request)
+    try:
+        name = db.delete_workspace(s.user_id, s.ws["id"], confirm)
+    except ValueError as e:
+        return flash_redirect("/team#delete", err=str(e))
+    resp = flash_redirect("/team", msg=f"Workspace “{name}” deleted.")
+    resp.delete_cookie(WS, path="/")
+    return resp
+
+
 @router.post("/team/invite")
 def team_invite(request: Request, role: str = Form("engineer"), email: str = Form("")):
     s = load_session(request)

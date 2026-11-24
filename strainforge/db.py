@@ -594,6 +594,26 @@ def delete_calc(uid, cid):
     q("delete from calculations where id = %s", (cid,))
 
 
+def get_calcs(uid, ws_id, ids):
+    """Several saved results from one workspace, in the order asked for (ones you can't see are left out)."""
+    _need_member(uid, ws_id)
+    rows = q(f"select {CALC_COLS} from {CALC_FROM} where c.workspace_id = %s and c.id = any(%s::uuid[])", (ws_id, list(ids)))
+    by_id = {str(r["id"]): r for r in rows}
+    return [by_id[i] for i in ids if i in by_id]
+
+
+def delete_calcs(uid, ids):
+    """Delete each result you're allowed to delete; returns (deleted ids, how many were refused)."""
+    done, refused = [], 0
+    for cid in ids:
+        try:
+            delete_calc(uid, cid)
+            done.append(cid)
+        except Denied:
+            refused += 1
+    return done, refused
+
+
 def versions(uid, cid):
     if not get_calc(uid, cid):
         raise Denied("Not found.")
@@ -621,6 +641,12 @@ def add_material(uid, ws_id, name, c, n, rm):
 def delete_material(uid, ws_id, mid):
     _need_admin(uid, ws_id)
     q("delete from materials where id = %s and workspace_id = %s", (mid, ws_id))
+
+
+def delete_materials(uid, ws_id, ids):
+    _need_admin(uid, ws_id)
+    rows = q("delete from materials where workspace_id = %s and id = any(%s::uuid[]) returning id", (ws_id, list(ids)))
+    return len(rows)
 
 
 def set_hidden(uid, ws_id, hidden):
@@ -673,6 +699,12 @@ def lib_update(uid, mid, name, c, n, rm):
 def lib_delete(mid):
     q("delete from library_materials where id = %s", (mid,))
     _lib_changed()
+
+
+def lib_delete_many(ids):
+    rows = q("delete from library_materials where id = any(%s::uuid[]) returning id", (list(ids),))
+    _lib_changed()
+    return len(rows)
 
 
 # ------------------------------------------------------------------ owner-built calculators

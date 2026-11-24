@@ -22,12 +22,23 @@
     <button class="btn" type="submit">Search</button>
   </form>
   {% if rows %}
+  <div class="bulkbar" id="bulkBar" hidden>
+    <b id="bulkCount">0 selected</b>
+    {% if can_report %}
+    <button class="btn sm" type="button" id="bulkPdf" data-label="Download PDF">Download PDF</button>
+    <button class="btn sm" type="button" id="bulkXlsx" data-label="Download Excel">Download Excel</button>
+    {% endif %}
+    <button class="btn sm danger" type="button" id="bulkDel" data-label="Delete">Delete</button>
+    <button class="btn sm" type="button" id="bulkClear">Clear selection</button>
+    {% if not can_report %}<span class="small muted">PDF and Excel reports come with the Personal and Team plans. <a href="/pricing">See plans</a></span>{% endif %}
+  </div>
   <div class="tblwrap">
-  <table>
-    <thead><tr><th>Name</th><th>Process</th><th>Material</th><th style="text-align:right">Load F</th><th style="text-align:right">Energy W</th><th>Last change</th><th></th></tr></thead>
+  <table id="histTable">
+    <thead><tr><th class="pick"><input type="checkbox" id="pickAll" aria-label="Select all"></th><th>Name</th><th>Process</th><th>Material</th><th style="text-align:right">Load F</th><th style="text-align:right">Energy W</th><th>Last change</th><th></th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr id="row-{{ r.id }}">
+        <td class="pick"><input type="checkbox" class="pickRow" value="{{ r.id }}" data-del="{{ '1' if (s.is_admin or (r.created_by|string) == s.user_id) else '0' }}" aria-label="Select {{ r.title }}"></td>
         <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="{% if r.tool %}/tools/{{ r.tool }}{% else %}/calculator{% endif %}?calc={{ r.id }}">{{ r.title }}</a>{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
         {% if r.tool %}
         <td>{{ tools[r.tool].title if r.tool in tools else r.tool }}<div class="small muted">Tool</div></td>
@@ -40,7 +51,7 @@
         <td class="v">{% if r.summary.W is not none %}<span data-qty="{{ r.summary.W }}" data-unit="kJ" data-d="3">{{ r.summary.W|num(3) }}</span> <span class="muted" data-unit-label="kJ">kJ</span>{% else %}—{% endif %}</td>
         {% endif %}
         <td class="small">{{ r.updated_at|when }}<div class="muted">{{ r.updated_by_name or r.created_by_name }}</div></td>
-        <td>{% if s.is_admin or (r.created_by|string) == s.user_id %}<button class="btn sm danger" type="button" data-del="{{ r.id }}" data-title="{{ r.title }}">Delete</button>{% endif %}</td>
+        <td>{% if s.is_admin or (r.created_by|string) == s.user_id %}<button class="btn sm danger" type="button" data-delone="{{ r.id }}" data-title="{{ r.title }}">Delete</button>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -54,13 +65,62 @@
 </div>
 {% endblock %}
 {% block scripts %}
+{% if can_report %}<script src="/static/report.js?v={{ config.ASSET_VERSION }}"></script>{% endif %}
 <script>
-document.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+(function () {
+const MAX = {{ max_batch }};
+const $ = id => document.getElementById(id);
+const boxes = () => [...document.querySelectorAll('.pickRow')];
+const picked = () => boxes().filter(b => b.checked);
+function sync() {
+  const p = picked(), all = boxes();
+  if (!$('bulkBar')) return;
+  $('bulkBar').hidden = !p.length;
+  $('bulkCount').textContent = p.length + ' selected';
+  $('pickAll').checked = p.length > 0 && p.length === all.length;
+  $('pickAll').indeterminate = p.length > 0 && p.length < all.length;
+  all.forEach(b => b.closest('tr').classList.toggle('picked', b.checked));
+  const d = p.filter(b => b.dataset.del === '1').length;
+  $('bulkDel').disabled = !d;
+  $('bulkDel').textContent = d && d < p.length ? `Delete ${d}` : 'Delete';
+  $('bulkDel').title = d < p.length ? 'Only an admin or the person who created a result can delete it' : '';
+}
+if ($('pickAll')) {
+  $('pickAll').addEventListener('change', e => { boxes().forEach(b => { b.checked = e.target.checked; }); sync(); });
+  document.addEventListener('change', e => { if (e.target.classList && e.target.classList.contains('pickRow')) sync(); });
+  $('bulkClear').addEventListener('click', () => { boxes().forEach(b => { b.checked = false; }); sync(); });
+  const report = (fmt, btn) => {
+    const ids = picked().map(b => b.value);
+    if (ids.length > MAX) { alert(`Choose at most ${MAX} at a time.`); return; }
+    window.SFReport.batch(ids, fmt, btn, ids.length > 1 ? `Preparing ${ids.length}…` : 'Preparing…');
+  };
+  if ($('bulkPdf')) $('bulkPdf').addEventListener('click', () => report('pdf', $('bulkPdf')));
+  if ($('bulkXlsx')) $('bulkXlsx').addEventListener('click', () => report('xlsx', $('bulkXlsx')));
+  $('bulkDel').addEventListener('click', async () => {
+    const p = picked(), ids = p.filter(b => b.dataset.del === '1').map(b => b.value);
+    if (!ids.length) return;
+    const skip = p.length - ids.length;
+    if (!confirm(`Delete ${ids.length} saved result${ids.length > 1 ? 's' : ''} and their version history? This cannot be undone.` + (skip ? `\n\n${skip} other${skip > 1 ? 's' : ''} you selected can only be deleted by an admin or the person who created ${skip > 1 ? 'them' : 'it'}, so ${skip > 1 ? 'they stay' : 'it stays'}.` : ''))) return;
+    const btn = $('bulkDel');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const r = await fetch('/api/calculations/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+      const out = await r.json();
+      if (!r.ok) throw new Error(out.error || 'Could not delete');
+      out.deleted.forEach(id => { const tr = $('row-' + id); if (tr) tr.remove(); });
+      if (out.refused) alert(`${out.refused} could not be deleted. Only an admin or the person who created a result can delete it.`);
+      if (!boxes().length) location.reload();
+    } catch (e) { alert(e.message || 'Could not delete'); }
+    finally { btn.textContent = 'Delete'; sync(); }
+  });
+}
+document.querySelectorAll('[data-delone]').forEach(b => b.addEventListener('click', async () => {
   if (!confirm('Delete “' + b.dataset.title + '” and its version history? This cannot be undone.')) return;
   b.disabled = true;
-  const r = await fetch('/api/calculations/' + b.dataset.del, { method: 'DELETE' });
-  if (r.ok) document.getElementById('row-' + b.dataset.del).remove();
+  const r = await fetch('/api/calculations/' + b.dataset.delone, { method: 'DELETE' });
+  if (r.ok) { document.getElementById('row-' + b.dataset.delone).remove(); sync(); if (!boxes().length) location.reload(); }
   else { b.disabled = false; alert((await r.json()).error || 'Could not delete'); }
 }));
+})();
 </script>
 {% endblock %}

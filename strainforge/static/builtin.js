@@ -252,6 +252,12 @@ $('btnClear').addEventListener('click', () => {
   state.values = keep; state.example = false; touch(); buildForm(); calc();
 });
 window.addEventListener('sf-units', () => { buildForm(); draw(); });
+// What the report buttons send: the inputs as they are now, with the name and notes from the Save box.
+window.SFReportSource = () => ({
+  source: { kind: 'tool', tool: T.slug, values: state.values },
+  title: ($('calcTitle') && $('calcTitle').value.trim()) || (save.row && save.row.title) || '',
+  notes: $('calcNotes') ? $('calcNotes').value : ((save.row && save.row.notes) || ''),
+});
 
 buildForm();
 run();

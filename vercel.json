@@ -2,7 +2,7 @@
   "functions": {
     "api/index.py": {
       "includeFiles": "strainforge/**",
-      "maxDuration": 15
+      "maxDuration": 60
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]

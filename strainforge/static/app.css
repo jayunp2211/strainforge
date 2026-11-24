@@ -248,6 +248,12 @@ td a.ttl { font-weight: 600; text-decoration: none; color: var(--ink); }
 td a.ttl:hover { color: var(--accent); }
 .status { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
 .status.ok { background: var(--ok); } .status.warn { background: var(--warn); } .status.bad { background: var(--bad); }
+/* Select several rows (history, materials) */
+th.pick, td.pick { width: 28px; padding-right: 0; }
+.pick input { width: 16px; height: 16px; margin: 0; vertical-align: middle; accent-color: var(--accent); cursor: pointer; }
+tr.picked td { background: var(--accent-soft); }
+.bulkbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; margin: 0 0 10px; border-radius: 8px; background: var(--accent-soft); border: 1px solid var(--line); position: sticky; top: 8px; z-index: 5; }
+.bulkbar b { font-size: .88rem; margin-right: 4px; }
 .role { font-size: .76rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
 .linkbox { display: flex; gap: 8px; margin-top: 8px; }
 .linkbox input { flex: 1; font-family: var(--f-mono); font-size: .82rem; }

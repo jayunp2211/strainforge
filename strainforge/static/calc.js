@@ -317,6 +317,15 @@ function payload() {
   return b;
 }
 
+// What the report buttons send: the inputs as they are now, with the name and notes from the Save box.
+window.SFReportSource = () => {
+  const m = matObj(state.mat);
+  const source = { kind: 'calc', process: state.p, shape: state.shape[state.p], material: state.mat, inputs: curInputs() };
+  if (m && m.custom) source.custom = { name: m.name, C: m.C, n: m.n, Rm: m.Rm };
+  return { source, title: ($('calcTitle') && $('calcTitle').value.trim()) || (state.saved && state.saved.title) || '',
+    notes: $('calcNotes') ? $('calcNotes').value : '' };
+};
+
 async function save(asNew, force) {
   const b = payload();
   if (!b.title.trim()) { $('calcTitle').focus(); $('calcTitle').placeholder = 'Give it a name first'; return; }

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · Strainforge{% endblock %}
-{% macro money(v) %}${{ '{:,.0f}'.format(v) }}{% endmacro %}
+{% macro money(v) %}${{ ('{:,.2f}' if v % 1 else '{:,.0f}').format(v) }}{% endmacro %}
 {% block body %}
 <div class="pagehead">
   <div>
@@ -24,7 +24,7 @@
       <div><b>{{ money(st.team_mrr) }}</b><span>{{ st.paying_teams }} team{{ '' if st.paying_teams == 1 else 's' }} · {{ st.seats }} seat{{ '' if st.seats == 1 else 's' }}</span></div>
       <div><b>{{ money(st.solo_mrr) }}</b><span>{{ st.solo }} personal account{{ '' if st.solo == 1 else 's' }}</span></div>
     </div>
-    <p class="note">{% if billing %}Collected through Stripe.{% else %}Collected so far: <b style="color:var(--bar-ink)">$0</b>. Projected is what today's accounts would pay at list price (Personal {{ money(price_base) }}, Team {{ money(price_base) }} + {{ money(price_seat) }} per extra seat) once billing is switched on. Your own account{{ 's' if config.SITE_ADMIN_EMAILS|length > 1 else '' }} and teams you own are free and left out.{% endif %}</p>
+    <p class="note">{% if billing %}Collected through Stripe.{% else %}Collected so far: <b style="color:var(--bar-ink)">$0</b>. Projected is what today's accounts would pay at list price (Personal {{ money(price_personal) }}, Team {{ money(price_team) }} for {{ team_seats }} engineers + {{ money(price_seat) }} per extra engineer, monthly billing) once billing is switched on. Your own account{{ 's' if config.SITE_ADMIN_EMAILS|length > 1 else '' }} and teams you own are free and left out.{% endif %}</p>
   </section>
   <div class="stats">
     <div class="stat"><div class="label">Accounts</div><div class="value">{{ k.users }}</div>

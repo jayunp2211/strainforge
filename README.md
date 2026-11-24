@@ -14,7 +14,7 @@ It covers ten processes: cut off, closed upset, open upset, setting to perform, 
 - **Site owner**: accounts whose email is listed in the `SITE_ADMIN_EMAILS` environment variable (comma-separated) can add, edit and remove materials in the standard library that every account sees. The library lives in the database and is seeded from `strainforge/materials.json`.
 - **Owner dashboard**: the site owner lands on `/`, a dashboard with projected monthly revenue at list price (billing is off), accounts, active users, teams and seats, saves, visits per day, process and material mix, recent activity and a CSV export of accounts. The calculator is at `/calculator` for everyone (and `/` for everyone else).
 - **Extra calculators**: the site owner builds calculators from named inputs and formulas (`/admin/tools/new`). Formulas use Excel habits (`^`, `PI()`, `IF(c,a,b)`, `kf(phi)` with a material) and are evaluated by a whitelisted parser in `strainforge/formula.py`, never by `eval`. Live ones are listed at `/tools`.
-- **Pricing**: Personal $15/month; Team $15/month incl. the admin + $10/month per extra seat. Billing is not switched on yet; every workspace runs as early access.
+- **Pricing**: Personal $19.99/month or $219/year; Team $49.99/month or $549/year for 3 engineers incl. the admin, + $14.99/month or $164/year per extra engineer (yearly = one month free). Billing is not switched on yet; every workspace runs as early access.
 
 ## Stack
 

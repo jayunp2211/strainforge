@@ -26,8 +26,10 @@ def team(request: Request):
         m["me"] = m["user_id"] == s.user_id
     inv = db.invites(s.user_id, s.ws["id"]) if s.ws and s.ws["kind"] == "team" else []
     seats = len(mem)
-    price = (config.PRICE_BASE_CENTS + max(0, seats - 1) * config.PRICE_SEAT_CENTS) if s.ws and s.ws["kind"] == "team" else config.PRICE_BASE_CENTS
-    return page(request, "team.html", s, members=mem, invites=inv, seats=seats, price=price / 100, base=site_url(request),
+    team = bool(s.ws and s.ws["kind"] == "team")
+    price = config.team_price_cents(seats) if team else config.PRICE_PERSONAL_CENTS
+    price_year = config.team_price_cents(seats, yearly=True) if team else config.PRICE_PERSONAL_YEAR_CENTS
+    return page(request, "team.html", s, members=mem, invites=inv, seats=seats, price=price / 100, price_year=price_year / 100, base=site_url(request),
                 new_link=request.query_params.get("link", ""), reset_link=request.query_params.get("reset", ""),
                 reset_for=request.query_params.get("for", ""))
 

@@ -125,3 +125,24 @@ def test_sleeve_three_degrees_is_in_range():
     assert next(c for c in r["checks"] if c["title"] == "Taper angle")["state"] == "ok"
     r = calculate({"A": 60, "B": 30, "D": 10, "L": 50, "alpha": 3.5, "insert": "Carbide"})
     assert next(c for c in r["checks"] if c["title"] == "Taper angle")["state"] == "warn"
+
+
+def test_sleeve_materials():
+    base = {"A": 60, "B": 30, "D": 10, "L": 50, "alpha": 3}
+    r = calculate(dict(base, case_mat="1.2343", sleeve_mat="1.2709", insert="WC-20Co"))
+    assert r["auto"]["E1"] == 210000 and r["auto"]["E3"] == 190000
+    assert r["auto"]["E2"] == 500000 and r["auto"]["m2"] == 4.17
+    assert set(r["auto"]["hints"]) == {"case_mat", "sleeve_mat", "insert"}
+    mats = {row[0]: row for row in r["tables"][0]["rows"]}
+    assert mats["Insert"][1] == "Carbide 20%" and mats["Sleeve"][4] == 190000
+    # The old "Carbide" value still means the workbook's carbide (15 % Co)
+    old = calculate(dict(base, insert="Carbide"))
+    assert old["auto"]["E2"] == 550000 and old["auto"]["m2"] == 4.25
+    # A weak case steel fails the stress check
+    weak = calculate(dict(base, case_mat="1.7225"))
+    assert next(c for c in weak["checks"] if c["title"] == "Case stress")["state"] == "bad"
+    ok = calculate(dict(base, case_mat="1.2343"))
+    assert next(c for c in ok["checks"] if c["title"] == "Case stress")["state"] == "ok"
+    # Typed values win over the material
+    own = calculate(dict(base, E1=200000))
+    assert own["auto"]["E1"] == 200000

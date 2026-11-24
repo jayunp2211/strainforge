@@ -56,7 +56,7 @@ function buildForm() {
         const ph = i.placeholder ? (isNum(auto[i.key]) ? 'auto ' + fmt(U.out(auto[i.key], u)) : i.placeholder) : '';
         ctl = `<input id="${id}" data-a="${esc(i.key)}" data-u="${esc(u)}" inputmode="decimal" value="${esc(inVal(val, u))}" placeholder="${esc(ph)}">`;
       }
-      return `<div class="field" data-k="${esc(i.key)}"><label for="${id}">${esc(i.label)}</label><div class="ctl">${ctl}<span class="unit">${uLbl(u)}</span></div>${i.hint ? `<div class="hint">${esc(i.hint)}</div>` : ''}</div>`;
+      return `<div class="field" data-k="${esc(i.key)}"><label for="${id}">${esc(i.label)}</label><div class="ctl">${ctl}<span class="unit">${uLbl(u)}</span></div>${i.hint || i.dynHint ? `<div class="hint" id="hint_${esc(i.key)}">${esc(U.text(((auto.hints || {})[i.key]) || i.hint || ''))}</div>` : ''}</div>`;
     }).join('');
     html += g.drawer ? `<details class="drawer" id="grp_${g.key}" style="margin-top:12px"><summary>${esc(g.title)}</summary>${rows}</details>`
       : `<div class="eyebrow" style="margin:2px 0 4px">${esc(g.title)}</div>${rows}`;
@@ -90,6 +90,8 @@ function refreshPlaceholders() {
   for (const i of T.inputs) {
     const el = $('in_' + i.key);
     if (el && i.placeholder) el.placeholder = isNum(auto[i.key]) ? 'auto ' + fmt(U.out(auto[i.key], unitOf(i))) : i.placeholder;
+    const h = $('hint_' + i.key);
+    if (h && auto.hints && auto.hints[i.key]) h.textContent = U.text(auto.hints[i.key]);
   }
 }
 
@@ -179,8 +181,8 @@ function draw() {
   $('checks').innerHTML = res.checks.length ? res.checks.map(c => `<div class="check ${c.state}"><span class="stripe"></span><div><div class="t">${esc(c.title)}</div><div class="d">${esc(c.desc)}</div></div><div class="r">${esc(U.text(c.value))}<div class="d">limit ${esc(U.text(c.limit))}</div></div></div>`).join('')
     : '<div class="check na"><span class="stripe"></span><div><div class="t">No checks yet</div><div class="d">Fill in the dimensions first.</div></div><div class="r"></div></div>';
   $('tables').innerHTML = (res.tables || []).map(t => `<div class="panel"><div class="phead"><h2>${esc(t.title)}</h2><span class="eyebrow">${esc(t.sub || '')}</span></div>
-    <div class="tblwrap"><table class="grid"><thead><tr>${t.columns.map((c, n) => `<th${n ? ' style="text-align:right"' : ''}>${esc(c.label)}${c.unit ? `<div class="small muted" style="font-weight:400">${uLbl(c.unit)}</div>` : ''}</th>`).join('')}</tr></thead>
-    <tbody>${t.rows.map(r => `<tr>${r.map((v, n) => n === 0 ? `<td>${esc(v)}</td>` : `<td class="v">${v && v.error ? `<span class="err">${esc(v.error)}</span>` : qty(v, t.columns[n].unit)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="tblwrap"><table class="grid"><thead><tr>${t.columns.map((c, n) => `<th${n && !c.text ? ' style="text-align:right"' : ''}>${esc(c.label)}${c.unit ? `<div class="small muted" style="font-weight:400">${uLbl(c.unit)}</div>` : ''}</th>`).join('')}</tr></thead>
+    <tbody>${t.rows.map(r => `<tr>${r.map((v, n) => n === 0 || t.columns[n].text ? `<td style="white-space:nowrap">${esc(v)}</td>` : `<td class="v">${v && v.error ? `<span class="err">${esc(v.error)}</span>` : qty(v, t.columns[n].unit, t.columns[n].decimals)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     ${(t.foot || []).map(f => `<p class="sub small" style="margin:8px 0 0">${esc(U.text(f))}</p>`).join('')}</div>`).join('');
   $('detail').querySelector('tbody').innerHTML = res.steps.map(d => d.group ? `<tr class="grp"><td colspan="3">${esc(d.group)}</td></tr>`
     : `<tr class="${d.key ? 'key' : ''}"><td>${esc(d.label)}</td><td class="v">${qty(d.value, d.unit)}</td><td class="u">${uLbl(d.unit)}</td></tr>`).join('');

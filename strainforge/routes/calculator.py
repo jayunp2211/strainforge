@@ -60,7 +60,7 @@ def _calc_ctx(mats, saved, s):
         "workspace": s.ws and {"id": s.ws["id"], "name": s.ws["name"], "kind": s.ws["kind"]},
         "user": s.user_id,
     }
-    return {"boot": json.dumps(jsonable_encoder(boot), ensure_ascii=False).replace("</", "<\\/"),
+    return {"canonical_path": "/", "boot": json.dumps(jsonable_encoder(boot), ensure_ascii=False).replace("</", "<\\/"),
             "proc_draw": PROC_DRAW, "shape_draw": SHAPE_DRAW, "svg_css": SVG_CSS, "svg_defs": SVG_DEFS,
             "saved": saved}
 

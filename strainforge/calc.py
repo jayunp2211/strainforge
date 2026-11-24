@@ -194,6 +194,8 @@ class Calculator:
                 continue
             row = {"cell": f"C{r}", "label": lab.rstrip(": ").strip(), "unit": _s(self.g(f"E{r}")),
                    "hint": _strip_paren(_s(self.g(f"F{r}"))), "kind": "select" if r == 59 else "number"}
+            if row["unit"] == "mm" and "volume" in row["label"].lower():
+                row["unit"] = "mm³"  # the workbook labels one sphere volume as mm
             if r == 45:
                 row.update(label="Pre-strain φ0", hint="Strain already in the material from earlier steps (wire drawing, previous stations)")
             if r == 59:

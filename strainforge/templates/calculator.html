@@ -66,7 +66,7 @@
       <div class="figs" id="figs"></div>
       <div class="m3d" id="m3d" hidden>
         <div class="m3d-view" id="m3dView" role="img" aria-label="3D model of the blank and the formed part"><p class="m3d-msg" id="m3dMsg">Loading 3D view…</p></div>
-        <div class="m3d-legend"><span><i class="sw before"></i>Before</span><span><i class="sw after"></i>After</span><span class="muted">Floor grid: 10 mm squares. Drag to turn, scroll to zoom.</span></div>
+        <div class="m3d-legend"><span><i class="sw before"></i>Before</span><span><i class="sw after"></i>After</span><span class="muted"><span id="m3dGrid">Floor grid: 10 mm squares.</span> Drag to turn, scroll to zoom.</span></div>
         <p class="hint small muted" id="m3dNotes"></p>
       </div>
       <p class="hint small muted figtip">Click a dimension or an input to see which is which. Click the drawing to enlarge it.</p>
@@ -116,7 +116,7 @@
 <section class="block panel">
   <div class="phead"><h2>Material library</h2><span class="eyebrow" id="matCount"></span></div>
   <div class="mat-tools"><input id="matSearch" type="search" placeholder="Filter materials, e.g. 16MnCr5 or Cu" aria-label="Filter materials"></div>
-  <div class="tblwrap"><table id="matTable"><thead><tr><th>Material</th><th style="text-align:right">Material constant C</th><th style="text-align:right">Work hardening n</th><th style="text-align:right">Tensile strength Rm</th></tr></thead><tbody></tbody></table></div>
+  <div class="tblwrap"><table id="matTable"><thead><tr><th>Material</th><th style="text-align:right">Material constant C (<span data-unit-label="N/mm²">N/mm²</span>)</th><th style="text-align:right">Work hardening n</th><th style="text-align:right">Tensile strength Rm (<span data-unit-label="N/mm²">N/mm²</span>)</th></tr></thead><tbody></tbody></table></div>
   <p class="sub" style="font-size:.82rem">Select a row to use that material. Rm in the table equals C·(n/e)<sup>n</sup>; the Ludwik curve kf = C·φ<sup>n</sup> is used everywhere else.</p>
 </section>
 

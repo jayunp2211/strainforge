@@ -23,7 +23,18 @@ def test_every_preset_gives_a_load():
             assert isinstance(r["results"]["F"], float) and r["results"]["F"] > 0, (p, s)
 
 
+def test_volume_inputs_are_cubic():
+    """Unit conversion relies on volumes being labelled mm³, never mm."""
+    c = Calculator()
+    for p, shapes in PROCESS_SHAPES.items():
+        for s in shapes:
+            for row in c.compute(p, s, "CuZr", {})["inputs"]:
+                if "volume" in row["label"].lower():
+                    assert row["unit"] == "mm³", (p, s, row)
+
+
 if __name__ == "__main__":
     test_reference_closed_upset()
     test_every_preset_gives_a_load()
+    test_volume_inputs_are_cubic()
     print("ok")

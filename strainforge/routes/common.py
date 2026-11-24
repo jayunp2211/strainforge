@@ -159,6 +159,14 @@ def has_tools() -> bool:
         return False
 
 
+ACTIVE_PLANS = ("early_access", "trial", "personal", "team")
+
+
+def can_report(s) -> bool:
+    """PDF and Excel reports are a paid feature (every active plan, including early access)."""
+    return bool(s.signed_in and s.ws and s.ws.get("plan") in ACTIVE_PLANS)
+
+
 def safe_next(nxt: str | None, default="/history") -> str:
     if nxt and nxt.startswith("/") and not nxt.startswith("//") and "\\" not in nxt:
         return nxt

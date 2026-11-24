@@ -94,6 +94,7 @@
       <div class="phead"><h2>Process checks</h2><span class="eyebrow">Tooling limits</span></div>
       <div class="checks" id="checks"></div>
     </div>
+    {% set report_title = saved.title if saved else 'Cold forming calculation' %}{% include "_report.html" %}
     <div class="panel">
       <div class="phead"><h2>Load sensitivity</h2><span class="eyebrow">Load F while one input moves ±30 %</span></div>
       <div class="chartctl"><label for="sensVar" class="eyebrow">Vary</label><select id="sensVar"></select></div>
@@ -135,4 +136,4 @@
 <script type="application/json" id="shapeDraw">{{ shape_draw|tojson }}</script>
 <dialog class="figdlg" id="figDlg" aria-label="Enlarged drawing"><div class="figdlg-in" id="figDlgBody"></div><form method="dialog"><button class="btn" type="submit">Close</button></form></dialog>
 {% endblock %}
-{% block scripts %}<script src="/static/calc.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}
+{% block scripts %}<script src="/static/calc.js?v={{ config.ASSET_VERSION }}"></script><script src="/static/report.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

@@ -24,6 +24,7 @@ const inVal = (v, u) => (isNum(v) ? String(converts(u) ? +U.out(v, u).toPrecisio
 // ---------------------------------------------------------------- state (metric values)
 const state = { values: {}, example: false, res: null, fig: 0, hl: '' };
 (function init() {
+  if (BOOT.saved) { state.values = Object.assign({}, T.example, BOOT.saved.inputs); return; }
   const q = new URLSearchParams(location.search);
   const known = T.inputs.filter(i => q.has(i.key));
   if (known.length) {
@@ -164,7 +165,10 @@ async function run() {
   draw();
   const q = new URLSearchParams();
   for (const i of T.inputs) { const v = state.values[i.key]; if (v !== null && v !== undefined && v !== '') q.set(i.key, isNum(v) ? +v.toPrecision(10) : v); }
+  if (BOOT.saved) q.set('calc', BOOT.saved.id);
   history.replaceState(null, '', location.pathname + '?' + q);
+  const here = encodeURIComponent(location.pathname + '?' + q);
+  ['signupSave', 'loginSave'].forEach(id => { const a = $(id); if (a) a.href = a.href.split('?')[0] + '?next=' + here; });
 }
 
 function draw() {
@@ -191,12 +195,61 @@ function draw() {
   drawFigs(res.figures);
 }
 
-$('btnExample').addEventListener('click', () => { state.values = Object.assign({}, T.example); state.example = true; buildForm(); calc(); });
+// ---------------------------------------------------------------- saving (any signed-in account)
+const save = { row: BOOT.saved, dirty: false };
+const canSave = BOOT.canSave && $('btnSave');
+const when = t => { try { return new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
+function touch() { if (canSave && !save.dirty) { save.dirty = true; drawSave(); } }
+function drawSave() {
+  if (!canSave) return;
+  const r = save.row;
+  $('btnSaveNew').hidden = !r; $('btnNew').hidden = !r;
+  $('btnSave').textContent = r ? 'Save changes' : 'Save';
+  $('saveState').textContent = r ? (save.dirty ? 'Unsaved changes' : 'Saved') : '';
+  $('saveMeta').innerHTML = r ? `Created by ${esc(r.created_by_name || 'someone')} · last saved ${esc(when(r.updated_at))} by ${esc(r.updated_by_name || 'someone')}`
+    : `Saving stores it in ${esc(BOOT.workspace.name)}${BOOT.workspace.kind === 'team' ? ', where your whole team can open and edit it' : ''}.`;
+}
+async function doSave(asNew, force) {
+  const b = { title: $('calcTitle').value, notes: $('calcNotes').value, values: state.values };
+  if (asNew && save.row) b.title = (b.title || save.row.title).replace(/( \(copy\))?$/, ' (copy)');
+  const update = save.row && !asNew;
+  if (update) { b.expected = save.row.updated_at; b.force = !!force; }
+  $('btnSave').disabled = true;
+  try {
+    const url = '/api/tools/' + encodeURIComponent(T.slug) + '/saved' + (update ? '/' + save.row.id : '');
+    const r = await fetch(url, { method: update ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+    const out = await r.json();
+    if (r.status === 409) {
+      if (confirm('Someone saved a newer version of this result. Replace it with yours? Cancel keeps theirs; you can then use Save as copy.')) return doSave(false, true);
+      return;
+    }
+    if (!r.ok) throw new Error(out.error || 'Could not save');
+    save.row = out; save.dirty = false; BOOT.saved = out;
+    $('calcTitle').value = out.title;
+    drawSave();
+    const q = new URLSearchParams(location.search); q.set('calc', out.id);
+    history.replaceState(null, '', location.pathname + '?' + q);
+    const rp = $('reportPanel'); if (rp) rp.dataset.title = out.title;
+  } catch (e) { alert(e.message || 'Could not save'); }
+  finally { $('btnSave').disabled = false; }
+}
+if (canSave) {
+  if (save.row) { $('calcTitle').value = save.row.title; $('calcNotes').value = save.row.notes || ''; if (save.row.notes) $('notesBox').open = true; }
+  $('btnSave').addEventListener('click', () => doSave(false));
+  $('btnSaveNew').addEventListener('click', () => doSave(true));
+  $('calcTitle').addEventListener('input', touch);
+  $('calcNotes').addEventListener('input', touch);
+  $('vars').addEventListener('input', touch);
+  $('vars').addEventListener('change', touch);
+  drawSave();
+}
+
+$('btnExample').addEventListener('click', () => { touch(); state.values = Object.assign({}, T.example); state.example = true; buildForm(); calc(); });
 $('btnClear').addEventListener('click', () => {
   const keep = {};
   const drawer = new Set(T.groups.filter(g => g.drawer).map(g => g.key));
   for (const i of T.inputs) keep[i.key] = drawer.has(i.group) || i.kind === 'select' ? T.example[i.key] : null;
-  state.values = keep; state.example = false; buildForm(); calc();
+  state.values = keep; state.example = false; touch(); buildForm(); calc();
 });
 window.addEventListener('sf-units', () => { buildForm(); draw(); });
 

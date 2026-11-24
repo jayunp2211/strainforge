@@ -20,7 +20,7 @@ from psycopg.types.json import Jsonb
 
 from . import config
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 SCHEMA = """
 create extension if not exists pgcrypto;
 create table if not exists users (
@@ -151,10 +151,13 @@ create table if not exists page_views (
 create index if not exists calculations_created on calculations(created_at);
 create index if not exists users_created on users(created_at);
 alter table users add column if not exists last_seen_at timestamptz;
+-- v4: results saved from the built-in tool pages (process/shape are 0 for those rows)
+alter table calculations add column if not exists tool text;
+alter table calculation_versions add column if not exists tool text;
 """
 
 SESSION_DAYS = 30
-CALC_COLS = ("c.id, c.workspace_id, c.title, c.process, c.shape, c.material, c.inputs, c.summary, c.notes, "
+CALC_COLS = ("c.id, c.workspace_id, c.title, c.tool, c.process, c.shape, c.material, c.inputs, c.summary, c.notes, "
              "c.created_by, c.updated_by, c.created_at, c.updated_at, "
              "coalesce(nullif(cu.full_name,''), cu.email) as created_by_name, "
              "coalesce(nullif(uu.full_name,''), uu.email) as updated_by_name")
@@ -513,7 +516,7 @@ def accept_invite(uid, token):
 
 # ------------------------------------------------------------------ calculations
 
-def list_calcs(uid, ws_id, term="", process=0, mine=False):
+def list_calcs(uid, ws_id, term="", process=0, mine=False, tool=""):
     _need_member(uid, ws_id)
     sql = (f"select {CALC_COLS} from {CALC_FROM} where c.workspace_id = %s")
     args = [ws_id]
@@ -521,8 +524,11 @@ def list_calcs(uid, ws_id, term="", process=0, mine=False):
         sql += " and (c.title ilike %s or c.material ilike %s or c.notes ilike %s)"
         like = "%" + term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         args += [like, like, like]
-    if process:
-        sql += " and c.process = %s"
+    if tool:
+        sql += " and c.tool = %s"
+        args.append(tool)
+    elif process:
+        sql += " and c.process = %s and c.tool is null"
         args.append(process)
     if mine:
         sql += " and c.created_by = %s"
@@ -538,18 +544,18 @@ def get_calc(uid, cid):
 
 
 def _version(cur, cid, row, uid):
-    cur.execute("insert into calculation_versions(calculation_id, title, process, shape, material, inputs, summary, notes, edited_by) "
-                "values (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (cid, row["title"], row["process"], row["shape"], row["material"], Jsonb(row["inputs"]),
+    cur.execute("insert into calculation_versions(calculation_id, title, tool, process, shape, material, inputs, summary, notes, edited_by) "
+                "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (cid, row["title"], row.get("tool"), row["process"], row["shape"], row["material"], Jsonb(row["inputs"]),
                  Jsonb(row["summary"]), row["notes"], uid))
 
 
 def create_calc(uid, ws_id, row):
     _need_paid(_need_member(uid, ws_id))
     with tx() as cur:
-        cur.execute("insert into calculations(workspace_id, title, process, shape, material, inputs, summary, notes, created_by, updated_by) "
-                    "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id",
-                    (ws_id, row["title"], row["process"], row["shape"], row["material"], Jsonb(row["inputs"]),
+        cur.execute("insert into calculations(workspace_id, title, tool, process, shape, material, inputs, summary, notes, created_by, updated_by) "
+                    "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id",
+                    (ws_id, row["title"], row.get("tool"), row["process"], row["shape"], row["material"], Jsonb(row["inputs"]),
                      Jsonb(row["summary"]), row["notes"], uid, uid))
         cid = cur.fetchone()["id"]
         _version(cur, cid, row, uid)
@@ -562,6 +568,8 @@ def update_calc(uid, cid, row, expected=None):
         raise Denied("This calculation no longer exists or you can't open it.")
     _need_paid(_need_member(uid, cur_row["workspace_id"]))
     with tx() as cur:
+        if (cur_row.get("tool") or None) != (row.get("tool") or None):
+            raise Denied("That saved result belongs to a different calculator.")
         sql = ("update calculations set title=%s, process=%s, shape=%s, material=%s, inputs=%s, summary=%s, notes=%s, "
                "updated_by=%s, updated_at=now() where id=%s")
         args = [row["title"], row["process"], row["shape"], row["material"], Jsonb(row["inputs"]), Jsonb(row["summary"]),
@@ -589,7 +597,7 @@ def delete_calc(uid, cid):
 def versions(uid, cid):
     if not get_calc(uid, cid):
         raise Denied("Not found.")
-    return q("select v.id, v.title, v.process, v.shape, v.material, v.inputs, v.summary, v.notes, v.created_at, "
+    return q("select v.id, v.title, v.tool, v.process, v.shape, v.material, v.inputs, v.summary, v.notes, v.created_at, "
              "coalesce(nullif(u.full_name,''), u.email) as edited_by_name from calculation_versions v "
              "left join users u on u.id = v.edited_by where v.calculation_id = %s order by v.id desc limit 50", (cid,))
 
@@ -797,8 +805,8 @@ def owner_stats(personal_cents: int, team_price=None, free_emails=()) -> dict:
       with d as (select generate_series(current_date - 29, current_date, interval '1 day')::date as day)
       select d.day, coalesce(sum(p.n), 0) as views from d left join page_views p on p.day = d.day
       group by d.day order by d.day""")
-    by_process = q("select process, count(*) as n from calculations group by process order by n desc")
-    by_material = q("select material, count(*) as n from calculations group by material order by n desc limit 8")
+    by_process = q("select process, tool, count(*) as n from calculations group by process, tool order by n desc")
+    by_material = q("select material, count(*) as n from calculations where material <> '' group by material order by n desc limit 8")
     people = q("""
       select u.id, u.email, coalesce(nullif(u.full_name, ''), split_part(u.email, '@', 1)) as name, u.created_at,
              u.last_seen_at as last_seen,
@@ -807,7 +815,7 @@ def owner_stats(personal_cents: int, team_price=None, free_emails=()) -> dict:
                where m.user_id = u.id and w.kind = 'team') as teams
       from users u order by u.created_at desc limit 25""")
     activity = q("""
-      select c.id, c.title, c.process, c.updated_at, w.name as workspace, w.kind,
+      select c.id, c.title, c.tool, c.process, c.updated_at, w.name as workspace, w.kind,
              coalesce(nullif(u.full_name, ''), u.email) as who
       from calculations c join workspaces w on w.id = c.workspace_id left join users u on u.id = c.updated_by
       order by c.updated_at desc limit 10""")

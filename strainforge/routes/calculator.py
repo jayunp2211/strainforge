@@ -5,11 +5,11 @@ from fastapi import APIRouter, Form, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from .. import config, db
+from .. import builtin, config, db
 from ..calc import PRESETS, PROCESSES, PROCESS_SHAPES, PROCESS_SLUG, SHAPE_NAMES
 from ..drawings import SVG_CSS, SVG_DEFS
 from .common import (
-    PROC_DRAW, PROC_NOTE, SHAPE_DRAW, WS, flash_redirect, is_uuid, jresp, library, load_session,
+    PROC_DRAW, PROC_NOTE, SHAPE_DRAW, WS, can_report, flash_redirect, is_uuid, jresp, library, load_session,
     need_login, page, read_json, run_calc, safe_next, set_cookie, summary_of, workspace_materials,
 )
 
@@ -41,6 +41,8 @@ def calculator(request: Request, calc: str | None = None):
         saved = db.get_calc(s.user_id, calc) if is_uuid(calc) else None
         if not saved:
             return flash_redirect("/history", err="That calculation doesn't exist or isn't shared with you.")
+        if saved.get("tool"):
+            return RedirectResponse(f"/tools/{saved['tool']}?calc={saved['id']}", 303)
         wsid = str(saved["workspace_id"])
         if not s.ws or s.ws["id"] != wsid:
             s.ws = next((w for w in s.workspaces if w["id"] == wsid), s.ws)
@@ -62,7 +64,7 @@ def _calc_ctx(mats, saved, s):
     }
     return {"canonical_path": "/", "boot": json.dumps(jsonable_encoder(boot), ensure_ascii=False).replace("</", "<\\/"),
             "proc_draw": PROC_DRAW, "shape_draw": SHAPE_DRAW, "svg_css": SVG_CSS, "svg_defs": SVG_DEFS,
-            "saved": saved}
+            "saved": saved, "can_report": can_report(s)}
 
 
 @router.post("/api/calc")
@@ -154,12 +156,15 @@ def delete_calc(request: Request, cid: str):
 
 
 @router.get("/history", response_class=HTMLResponse)
-def history(request: Request, q: str = "", process: int = 0, mine: int = 0):
+def history(request: Request, q: str = "", process: str = "0", mine: int = 0):
     s = load_session(request)
     if not s.signed_in:
         return need_login(request)
-    rows = db.list_calcs(s.user_id, s.ws["id"], q.strip()[:60], process if 1 <= process <= 10 else 0, bool(mine)) if s.ws else []
-    return page(request, "history.html", s, rows=rows, q=q, process=process, mine=mine)
+    tool = process[2:] if process.startswith("t:") and process[2:] in builtin.TOOLS else ""
+    proc = int(process) if process.isdigit() and 1 <= int(process) <= 10 else 0
+    rows = db.list_calcs(s.user_id, s.ws["id"], q.strip()[:60], proc, bool(mine), tool) if s.ws else []
+    return page(request, "history.html", s, rows=rows, q=q, process=process if (tool or proc) else "0", mine=mine,
+                tools=builtin.TOOLS)
 
 
 @router.post("/workspace/switch")

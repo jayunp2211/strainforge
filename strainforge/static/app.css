@@ -402,3 +402,35 @@ a:focus-visible, summary:focus-visible, textarea:focus-visible, [tabindex]:not([
 .figdlg-in .dwg { width: 100%; height: auto; max-height: 76vh; display: block; }
 .figdlg-in figcaption { text-align: center; margin-top: 6px; color: var(--ink-2); }
 .figdlg form { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+/* Calculator layout: inputs, drawing and results.
+   Wide screens: three columns, the drawing stays in view beside the inputs while scrolling.
+   Medium: two columns with the drawing above the inputs. Narrow: one column. */
+.bench { grid-template-areas: "top res" "fig res" "vars res"; grid-template-rows: auto auto 1fr; }
+.b-top { grid-area: top; } .b-fig { grid-area: fig; } .b-vars { grid-area: vars; } .b-res { grid-area: res; }
+@media (min-width: 1200px) {
+  .bench { grid-template-columns: minmax(0, 3.8fr) minmax(0, 5fr) minmax(0, 4.2fr); grid-template-areas: "top fig res" "vars fig res"; grid-template-rows: auto 1fr; }
+  .b-fig { position: sticky; top: 78px; align-self: start; }
+  .b-res .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .figpanel figure .dwg { max-height: min(460px, calc(100vh - 260px)); }
+}
+@media (max-width: 900px) {
+  .bench { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "fig" "vars" "res"; grid-template-rows: auto; }
+}
+
+/* 3D tab */
+.m3d[hidden] { display: none; }
+.m3d-view { position: relative; height: clamp(260px, 42vh, 440px); border-radius: 8px; background: radial-gradient(ellipse at 50% 35%, var(--panel) 0%, var(--paper) 70%); overflow: hidden; touch-action: none; }
+.m3d-view canvas { display: block; cursor: grab; }
+.m3d-view canvas:active { cursor: grabbing; }
+.m3d-msg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--muted); font-size: .9rem; }
+.m3d-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: .82rem; margin-top: 8px; color: var(--ink-2); }
+.m3d-legend .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.m3d-legend .sw.before { background: #c3ccd5; } .m3d-legend .sw.after { background: #7fa9c8; }
+#m3dNotes { margin: 6px 0 0; }
+#m3dNotes:empty { display: none; }
+
+/* Wide screens: results column stays in view too (scrolls on its own if taller than the window) */
+@media (min-width: 1200px) {
+  .b-res { position: sticky; top: 78px; align-self: start; max-height: calc(100vh - 94px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-bottom: 2px; }
+}

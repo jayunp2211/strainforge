@@ -5,7 +5,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from .. import db
+from .. import config, db
 from ..calc import PRESETS, PROCESSES, PROCESS_SHAPES, PROCESS_SLUG, SHAPE_NAMES
 from ..drawings import SVG_CSS, SVG_DEFS
 from .common import (
@@ -54,7 +54,7 @@ def calculator(request: Request, calc: str | None = None):
 
 def _calc_ctx(mats, saved, s):
     boot = {
-        "processes": PROCESSES, "notes": PROC_NOTE, "slugs": PROCESS_SLUG,
+        "processes": PROCESSES, "notes": PROC_NOTE, "slugs": PROCESS_SLUG, "assetVersion": config.ASSET_VERSION,
         "processShapes": PROCESS_SHAPES, "shapeNames": SHAPE_NAMES, "presets": PRESETS,
         "materials": mats, "saved": saved, "signedIn": s.signed_in, "canSave": bool(s.ws),
         "workspace": s.ws and {"id": s.ws["id"], "name": s.ws["name"], "kind": s.ws["kind"]},

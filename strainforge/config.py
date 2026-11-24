@@ -4,6 +4,9 @@ import os
 DATABASE_URL = (os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_POSTGRES_URL")
                 or os.environ.get("POSTGRES_URL") or "")
 
+# Changes on every Vercel deploy, so browsers and the CDN fetch fresh CSS/JS after each release.
+ASSET_VERSION = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or os.environ.get("VERCEL_DEPLOYMENT_ID") or "dev")[:12]
+
 SITE_URL = os.environ.get("SITE_URL", "https://strainforge.vercel.app").rstrip("/")
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
 

@@ -11,11 +11,11 @@ routes/common.py and every permission rule is in db.py.
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import db
+from . import config, db
 from .routes import admin, auth, calculator, materials, team, tools
 from .routes.common import HERE, flash_redirect, load_session, page
 
@@ -38,8 +38,12 @@ async def headers_and_csrf(request: Request, call_next):
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
     resp.headers.setdefault("Referrer-Policy", "same-origin")
     resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+    resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
     if request.url.path.startswith("/static/"):
-        resp.headers.setdefault("Cache-Control", "public, max-age=86400")
+        # Versioned URLs (?v=<deploy>) never change, so they can be cached for a year.
+        long = request.query_params.get("v") == config.ASSET_VERSION and config.ASSET_VERSION != "dev"
+        resp.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable" if long else "public, max-age=3600")
     elif resp.headers.get("content-type", "").startswith("text/html"):
         resp.headers.setdefault("Cache-Control", "no-store")
     return resp
@@ -73,3 +77,28 @@ def healthz():
     db.ensure_schema()
     db.q("select 1")
     return {"ok": True, "schema": db.SCHEMA_VERSION}
+
+
+# ------------------------------------------------------------------ search engines
+# Only the free public pages are listed; everything behind a sign-in also says noindex in its <head>.
+PRIVATE = ("/admin", "/account", "/history", "/team", "/workspace", "/invite", "/reset", "/api/", "/login",
+           "/signup", "/forgot")
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots():
+    lines = ["User-agent: *", *[f"Disallow: {p}" for p in PRIVATE], "", f"Sitemap: {config.SITE_URL}/sitemap.xml", ""]
+    return "\n".join(lines)
+
+
+@app.get("/sitemap.xml")
+def sitemap():
+    from xml.sax.saxutils import escape as x
+    paths = ["/", "/tools", "/materials", "/pricing"]
+    try:
+        paths += [f"/tools/{t['slug']}" for t in tools.published_tools()]
+    except Exception:  # the static pages are still worth listing if the database is briefly unreachable
+        pass
+    urls = "".join(f"<url><loc>{x(config.SITE_URL + p)}</loc></url>" for p in paths)
+    body = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
+    return Response(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})

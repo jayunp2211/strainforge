@@ -1,8 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{% if saved %}{{ saved.title }} · {% endif %}Strainforge{% endblock %}
-{% block head %}<style>{{ svg_css|safe }}</style>{% endblock %}
+{% block title %}{% if saved %}{{ saved.title }} · Strainforge{% else %}Cold forming force calculator · Strainforge{% endif %}{% endblock %}
+{% block robots %}{% if saved %}noindex{% else %}index{% endif %}{% endblock %}
+{% block head %}<style>{{ svg_css|safe }}</style>
+{% if not saved %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Strainforge","url":"{{ config.SITE_URL }}/","applicationCategory":"EngineeringApplication","operatingSystem":"Any","description":"Free cold forming calculator for forging loads, energy and tool checks.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>{% endif %}
+{% endblock %}
 {% block body %}
 {{ svg_defs|safe }}
+<h1 class="sr-only">Cold forming force and energy calculator</h1>
 <nav class="rail" id="rail" aria-label="Process">
   {% for name in PROCESSES %}
   <button class="proc" type="button" data-p="{{ loop.index }}" aria-pressed="false" title="{{ name }}">
@@ -65,7 +69,7 @@
     <div class="panel" id="resPanel">
       <div class="phead"><h2>Results</h2><span class="eyebrow" id="resSub"></span></div>
       <div class="kpis" id="kpis"></div>
-      <div class="banner" id="banner"></div>
+      <div class="banner" id="banner" aria-live="polite"></div>
     </div>
     <div class="panel">
       <div class="phead"><h2>Process checks</h2><span class="eyebrow">Tooling limits</span></div>
@@ -111,4 +115,4 @@
 <script type="application/json" id="boot">{{ boot|safe }}</script>
 <script type="application/json" id="shapeDraw">{{ shape_draw|tojson }}</script>
 {% endblock %}
-{% block scripts %}<script src="/static/calc.js?v=5"></script>{% endblock %}
+{% block scripts %}<script src="/static/calc.js?v={{ config.ASSET_VERSION }}"></script>{% endblock %}

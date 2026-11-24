@@ -33,7 +33,7 @@ def tool_page(request: Request, slug: str):
         db.count_view("tool:" + t["slug"])
     mats = workspace_materials(s)[0] if s.signed_in else library()
     boot = {"slug": t["slug"], "spec": t["spec"], "materials": mats if t["spec"].get("material") else []}
-    return page(request, "tool.html", s, t=t,
+    return page(request, "tool.html", s, t=t, canonical_path=f"/tools/{t['slug']}",
                 boot=json.dumps(jsonable_encoder(boot), ensure_ascii=False).replace("</", "<\\/"))
 
 

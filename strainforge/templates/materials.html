@@ -15,11 +15,13 @@
   <div class="panel">
     <div class="phead"><h2>Custom materials</h2><span class="eyebrow">{{ custom|length }} added</span></div>
     {% if custom %}
+    {% if s.is_admin %}<form method="post" action="/materials/delete" id="matBulk" data-bulk="material" data-confirm="Remove {n} custom material{s}? Saved calculations keep their values."></form>
+    <div class="bulkbar" data-bar="matBulk" hidden><b data-count>0 selected</b><button class="btn sm danger" type="submit" form="matBulk">Remove selected</button><button class="btn sm" type="button" data-clear>Clear selection</button></div>{% endif %}
     <div class="tblwrap"><table>
-      <thead><tr><th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th><th></th></tr></thead>
+      <thead><tr>{% if s.is_admin %}<th class="pick"><input type="checkbox" data-all="matBulk" aria-label="Select all custom materials"></th>{% endif %}<th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th><th></th></tr></thead>
       <tbody>
       {% for m in custom %}
-      <tr><td><b>{{ m.name }}</b></td><td class="v">{{ m.c|num(0) }}</td><td class="v">{{ m.n|num(3) }}</td><td class="v">{{ m.rm|num(1) if m.rm is not none else '—' }}</td>
+      <tr>{% if s.is_admin %}<td class="pick"><input type="checkbox" name="ids" value="{{ m.id }}" form="matBulk" aria-label="Select {{ m.name }}"></td>{% endif %}<td><b>{{ m.name }}</b></td><td class="v">{{ m.c|num(0) }}</td><td class="v">{{ m.n|num(3) }}</td><td class="v">{{ m.rm|num(1) if m.rm is not none else '—' }}</td>
         <td style="text-align:right">{% if s.is_admin %}<form method="post" action="/materials/{{ m.id }}/delete" class="inline" onsubmit="return confirm('Remove {{ m.name }}? Saved calculations keep their values.')"><button class="btn sm danger" type="submit">Remove</button></form>{% endif %}</td></tr>
       {% endfor %}
       </tbody>
@@ -59,12 +61,14 @@
     <button class="btn primary" type="submit">Add to library</button>
   </form>
   {% elif s.is_admin %}<p class="sub small" style="margin:-4px 0 10px">Hide materials your shop never uses, so they drop out of the calculator's list.</p>{% endif %}
+  {% if s.is_site_admin %}<form method="post" action="/library/delete" id="libBulk" data-confirm="Remove {n} material{s} from the standard library for every account?"></form>
+  <div class="bulkbar" data-bar="libBulk" hidden><b data-count>0 selected</b><button class="btn sm danger" type="submit" form="libBulk">Remove from library</button><button class="btn sm" type="button" data-clear>Clear selection</button></div>{% endif %}
   <div class="tblwrap"><table>
-    <thead><tr><th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th>{% if s.is_admin or s.is_site_admin %}<th></th>{% endif %}</tr></thead>
+    <thead><tr>{% if s.is_site_admin %}<th class="pick"><input type="checkbox" data-all="libBulk" aria-label="Select all library materials"></th>{% endif %}<th>Material</th><th style="text-align:right">C (N/mm²)</th><th style="text-align:right">n</th><th style="text-align:right">Rm (N/mm²)</th>{% if s.is_admin or s.is_site_admin %}<th></th>{% endif %}</tr></thead>
     <tbody>
     {% for m in defaults %}
     {% if s.is_site_admin and edit and m.id == edit %}
-    <tr class="editing"><td colspan="5">
+    <tr class="editing"><td colspan="6">
       <form method="post" action="/library/{{ m.id }}/edit" class="libadd" id="edit-{{ m.id }}">
         <input class="tf" name="name" maxlength="60" required value="{{ m.name }}" aria-label="Name">
         <input class="tf" name="c" inputmode="decimal" required value="{{ m.C }}" aria-label="Material constant C">
@@ -74,7 +78,7 @@
       </form>
     </td></tr>
     {% else %}
-    <tr {% if m.name in hidden %}style="opacity:.5"{% endif %}><td>{{ m.name }}{% if m.name in hidden %} <span class="muted small">hidden</span>{% endif %}</td><td class="v">{{ m.C|num(0) }}</td><td class="v">{{ m.n|num(3) }}</td><td class="v">{{ m.Rm|num(1) if m.Rm is not none else '—' }}</td>
+    <tr {% if m.name in hidden %}style="opacity:.5"{% endif %}>{% if s.is_site_admin %}<td class="pick">{% if m.id %}<input type="checkbox" name="ids" value="{{ m.id }}" form="libBulk" aria-label="Select {{ m.name }}">{% endif %}</td>{% endif %}<td>{{ m.name }}{% if m.name in hidden %} <span class="muted small">hidden</span>{% endif %}</td><td class="v">{{ m.C|num(0) }}</td><td class="v">{{ m.n|num(3) }}</td><td class="v">{{ m.Rm|num(1) if m.Rm is not none else '—' }}</td>
       {% if s.is_admin or s.is_site_admin %}<td style="text-align:right;white-space:nowrap">
         {% if s.is_admin %}<form method="post" action="/materials/visibility" class="inline"><input type="hidden" name="name" value="{{ m.name }}"><input type="hidden" name="hide" value="{{ 0 if m.name in hidden else 1 }}"><button class="btn sm" type="submit">{{ 'Show' if m.name in hidden else 'Hide' }}</button></form>{% endif %}
         {% if s.is_site_admin and m.id %}<a class="btn sm" href="/materials?edit={{ m.id }}#std">Edit</a>
@@ -85,4 +89,28 @@
     </tbody>
   </table></div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+/* Tick several materials, then remove them in one go. */
+document.querySelectorAll('form[data-confirm]').forEach(form => {
+  const id = form.id;
+  const boxes = () => [...document.querySelectorAll(`input[name="ids"][form="${id}"]`)];
+  const bar = document.querySelector(`[data-bar="${id}"]`), all = document.querySelector(`[data-all="${id}"]`);
+  const sync = () => {
+    const n = boxes().filter(b => b.checked).length;
+    bar.hidden = !n;
+    bar.querySelector('[data-count]').textContent = n + ' selected';
+    if (all) { all.checked = n > 0 && n === boxes().length; all.indeterminate = n > 0 && n < boxes().length; }
+    boxes().forEach(b => b.closest('tr').classList.toggle('picked', b.checked));
+  };
+  boxes().forEach(b => b.addEventListener('change', sync));
+  if (all) all.addEventListener('change', () => { boxes().forEach(b => { b.checked = all.checked; }); sync(); });
+  bar.querySelector('[data-clear]').addEventListener('click', () => { boxes().forEach(b => { b.checked = false; }); sync(); });
+  form.addEventListener('submit', e => {
+    const n = boxes().filter(b => b.checked).length;
+    if (!n || !confirm(form.dataset.confirm.replace('{n}', n).replace('{s}', n === 1 ? '' : 's'))) e.preventDefault();
+  });
+});
+</script>
 {% endblock %}

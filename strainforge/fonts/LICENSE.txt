@@ -1,0 +1,89 @@
+DejaVu Sans fonts, used to write the PDF reports.
+
+Files: *
+Copyright: Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. 
+ Bitstream Vera is a trademark of Bitstream, Inc.
+ DejaVu changes are in public domain.
+License: bitstream-vera
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of the fonts accompanying this license ("Fonts") and associated
+ documentation files (the "Font Software"), to reproduce and distribute the
+ Font Software, including without limitation the rights to use, copy, merge,
+ publish, distribute, and/or sell copies of the Font Software, and to permit
+ persons to whom the Font Software is furnished to do so, subject to the
+ following conditions:
+ .
+ The above copyright and trademark notices and this permission notice shall
+ be included in all copies of one or more of the Font Software typefaces.
+ .
+ The Font Software may be modified, altered, or added to, and in particular
+ the designs of glyphs or characters in the Fonts may be modified and
+ additional glyphs or characters may be added to the Fonts, only if the fonts
+ are renamed to names not containing either the words "Bitstream" or the word
+ "Vera".
+ .
+ This License becomes null and void to the extent applicable to Fonts or Font
+ Software that has been modified and is distributed under the "Bitstream
+ Vera" names.
+ .
+ The Font Software may be sold as part of a larger software package but no
+ copy of one or more of the Font Software typefaces may be sold by itself.
+ .
+ THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT,
+ TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL BITSTREAM OR THE GNOME
+ FOUNDATION BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING
+ ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
+ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+ THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE
+ FONT SOFTWARE.
+ .
+ Except as contained in this notice, the names of Gnome, the Gnome
+ Foundation, and Bitstream Inc., shall not be used in advertising or
+ otherwise to promote the sale, use or other dealings in this Font Software
+ without prior written authorization from the Gnome Foundation or Bitstream
+ Inc., respectively. For further information, contact: fonts at gnome dot
+ org.
+
+Files: debian/*
+12- Permission is hereby granted, free of charge, to any person obtaining a copy
+13- of the fonts accompanying this license ("Fonts") and associated
+14- documentation files (the "Font Software"), to reproduce and distribute the
+15- Font Software, including without limitation the rights to use, copy, merge,
+16- publish, distribute, and/or sell copies of the Font Software, and to permit
+17- persons to whom the Font Software is furnished to do so, subject to the
+18- following conditions:
+19- .
+20- The above copyright and trademark notices and this permission notice shall
+21- be included in all copies of one or more of the Font Software typefaces.
+22- .
+23- The Font Software may be modified, altered, or added to, and in particular
+24- the designs of glyphs or characters in the Fonts may be modified and
+25- additional glyphs or characters may be added to the Fonts, only if the fonts
+26- are renamed to names not containing either the words "Bitstream" or the word
+27- "Vera".
+28- .
+29- This License becomes null and void to the extent applicable to Fonts or Font
+30- Software that has been modified and is distributed under the "Bitstream
+31- Vera" names.
+32- .
+33- The Font Software may be sold as part of a larger software package but no
+34- copy of one or more of the Font Software typefaces may be sold by itself.
+35- .
+36- THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+37- OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY,
+38- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT,
+39- TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL BITSTREAM OR THE GNOME
+40- FOUNDATION BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING
+41- ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
+42- WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+43- THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE
+44- FONT SOFTWARE.
+45- .
+46- Except as contained in this notice, the names of Gnome, the Gnome
+47- Foundation, and Bitstream Inc., shall not be used in advertising or
+48- otherwise to promote the sale, use or other dealings in this Font Software
+49- without prior written authorization from the Gnome Foundation or Bitstream
+50- Inc., respectively. For further information, contact: fonts at gnome dot
+51- org.

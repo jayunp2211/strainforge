@@ -55,6 +55,19 @@ def material_delete(request: Request, mid: str):
     return flash_redirect("/materials", msg="Material removed.")
 
 
+@router.post("/materials/delete")
+async def materials_delete_many(request: Request):
+    s = load_session(request)
+    if not s.ws:
+        return need_login(request)
+    form = await request.form()
+    ids = [i for i in form.getlist("ids") if is_uuid(i)][:500]
+    if not ids:
+        return flash_redirect("/materials", err="Tick the materials to remove first.")
+    n = db.delete_materials(s.user_id, s.ws["id"], ids)
+    return flash_redirect("/materials", msg=f"Removed {n} material{'s' if n != 1 else ''}.")
+
+
 @router.post("/materials/visibility")
 def material_visibility(request: Request, name: str = Form(...), hide: int = Form(...)):
     s = load_session(request)
@@ -92,6 +105,18 @@ def library_edit(request: Request, mid: str, name: str = Form(...), c: str = For
     except ValueError as e:
         return flash_redirect(f"/materials?edit={mid}#std", err=str(e))
     return flash_redirect("/materials#std", msg=f"{name} updated for everyone.")
+
+
+@router.post("/library/delete")
+async def library_delete_many(request: Request):
+    s = load_session(request)
+    need_site_admin(s, "change the standard library")
+    form = await request.form()
+    ids = [i for i in form.getlist("ids") if is_uuid(i)][:500]
+    if not ids:
+        return flash_redirect("/materials#std", err="Tick the materials to remove first.")
+    n = db.lib_delete_many(ids)
+    return flash_redirect("/materials#std", msg=f"Removed {n} material{'s' if n != 1 else ''} from the standard library.")
 
 
 @router.post("/library/{mid}/delete")

@@ -1,32 +1,91 @@
 import io
+import re
+import zipfile
 
 from openpyxl import load_workbook
 
-from strainforge.routes.reports import _filename, build_xlsx
+from strainforge import builtin, report
+from strainforge.calc import PRESETS
+
+META = [("Prepared by", "Test"), ("Workspace", "Shop")]
 
 
-def _rows(data):
-    return [[c for c in r if c is not None] for r in load_workbook(io.BytesIO(data)).active.iter_rows(values_only=True)]
+def _sleeve(units="metric", title="M10 die", notes=""):
+    bt = builtin.get("slotted-sleeve-die")
+    m = report.tool_model(bt, dict(bt["example"]), report.Units(units))
+    return report.finish(m, title, notes, META, "24 November 2026")
 
 
-def test_numbers_become_numbers_and_formulas_stay_text():
-    data = build_xlsx({"title": "=cmd", "meta": [["Date", "24 November 2026"]], "sections": [
-        {"title": "Inputs", "columns": ["Input", "Value", "Unit"],
-         "rows": [["De", "1,234.5", "mm"], ["t'", "= t", "mm"], ["evil", "=HYPERLINK(\"x\")", ""], {"group": "Stresses"}, ["neg", "−3,404.49", "N/mm²"]]}]})
+def _calc(units="metric"):
+    m = report.calc_model(6, 11, "CuZr", PRESETS["6-11"], None, report.Units(units))
+    return report.finish(m, "Reduction", "", META, "24 November 2026")
+
+
+def _values(data, sheet=None):
     wb = load_workbook(io.BytesIO(data))
-    ws = wb.active
-    cells = [c for row in ws.iter_rows() for c in row if c.value is not None]
+    ws = wb[sheet] if sheet else wb.active
+    return wb, ws, [c for row in ws.iter_rows() for c in row if c.value is not None]
+
+
+def test_pdf_is_a_real_pdf_and_short():
+    for m in (_sleeve(), _calc(), _sleeve("imperial")):
+        pdf = report.build_pdf(m)
+        assert pdf[:5] == b"%PDF-"
+        assert len(re.findall(rb"/Type\s*/Page(?!s)", pdf)) <= 2
+
+
+def test_every_tool_and_process_builds():
+    for slug, bt in builtin.TOOLS.items():
+        assert report.build_pdf(report.finish(report.tool_model(bt, dict(bt["example"]), report.Units()), "", "", META, "d"))
+        assert report.build_pdf(report.finish(report.tool_model(bt, {}, report.Units()), "", "", META, "d"))  # empty inputs
+    for key, inputs in PRESETS.items():
+        p, shape = (int(x) for x in key.split("-"))
+        m = report.finish(report.calc_model(p, shape, "CuZr", inputs, None, report.Units("imperial")), "", "", META, "d")
+        assert report.build_pdf(m)[:5] == b"%PDF-"
+
+
+def test_units_follow_the_viewer():
+    met, imp = _sleeve(), _sleeve("imperial")
+    assert met["kpis"][0]["unit"] == "kN" and imp["kpis"][0]["unit"] == "tonf"
+    a, b = met["kpis"][0]["value"]["n"], imp["kpis"][0]["value"]["n"]
+    assert abs(a / 8.896443230521 - b) < 1e-6
+    assert ">1.0" in report.svg_for_pdf('<svg viewBox="0 0 10 10"><text data-qty="25.4" data-unit="mm">25.4</text></svg>', report.Units("imperial"))
+
+
+def test_excel_numbers_are_numbers_and_text_is_never_a_formula():
+    data = report.build_xlsx([_sleeve(title="=HYPERLINK(\"x\")", notes="=1+1")])
+    wb, ws, cells = _values(data)
     assert not any(c.data_type == "f" for c in cells)
-    rows = _rows(data)
-    assert ["De", 1234.5, "mm"] in rows
-    assert ["neg", -3404.49, "N/mm²"] in rows
-    assert ["t'", "= t", "mm"] in rows
-    assert ["Stresses"] in rows
+    assert any(c.value == "=1+1" for c in cells)
+    nums = [c for c in cells if isinstance(c.value, float)]
+    assert nums and all(c.number_format.startswith("#,##0") for c in nums)
 
 
-def test_limits_and_filename():
-    big = {"title": "x", "sections": [{"title": "s", "columns": ["a"] * 50, "rows": [["1"] * 50] * 1000}] * 50}
-    rows = _rows(build_xlsx(big))
-    assert len(rows) < 1200 + 20 * 4 + 20
-    assert _filename("Disc stack A / ../x").startswith("Disc-stack-A-")
-    assert _filename("").startswith("strainforge-report-")
+def test_excel_batch_has_overview_and_a_sheet_each():
+    data = report.build_xlsx([_sleeve(), _sleeve(), _calc()])
+    wb = load_workbook(io.BytesIO(data))
+    assert wb.sheetnames[0] == "Overview"
+    assert len(wb.sheetnames) == 4 and len(set(n.lower() for n in wb.sheetnames)) == 4
+    ov = wb["Overview"]
+    assert ov.cell(6, 2).hyperlink is not None
+
+
+def test_zip_dedupes_names_and_filename():
+    z = zipfile.ZipFile(io.BytesIO(report.build_zip([("a.pdf", b"1"), ("a.pdf", b"2"), ("A.pdf", b"3")])))
+    assert z.namelist() == ["a.pdf", "a-2.pdf", "A-3.pdf"]
+    assert report.filename("Disc stack A / ../x", "pdf").startswith("Disc-stack-A-")
+    assert report.filename("", "xlsx").startswith("strainforge-report-")
+
+
+def test_source_is_validated():
+    U = report.Units()
+    for bad in (None, {"kind": "tool", "tool": "nope", "values": {}}, {"kind": "tool", "tool": "disc-spring", "values": []}):
+        try:
+            report.model_from_source(bad, U)
+            assert False, bad
+        except ValueError:
+            pass
+    m = report.model_from_source({"kind": "tool", "tool": "disc-spring", "values": {"De": 12, "evil": "x" * 1000}}, U)
+    assert m["kind"] == "Disc spring calculator"
+    assert report.today_label("<script>") != "<script>"
+    assert report.today_label("24 November 2026") == "24 November 2026"

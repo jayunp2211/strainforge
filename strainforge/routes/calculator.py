@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from .. import builtin, config, db
+from ..report import MAX_BATCH
 from ..calc import PRESETS, PROCESSES, PROCESS_SHAPES, PROCESS_SLUG, SHAPE_NAMES
 from ..drawings import SVG_CSS, SVG_DEFS
 from .common import (
@@ -155,6 +156,21 @@ def delete_calc(request: Request, cid: str):
     return jresp({"ok": True})
 
 
+@router.post("/api/calculations/delete")
+async def delete_many(request: Request):
+    """Delete several saved results at once (the ones you're allowed to delete)."""
+    s = load_session(request)
+    if not s.signed_in:
+        return jresp({"error": "Sign in first"}, 401)
+    body = await read_json(request)
+    ids = body.get("ids") if isinstance(body, dict) else None
+    if not isinstance(ids, list) or not ids:
+        return jresp({"error": "Choose at least one saved result"}, 400)
+    ids = list(dict.fromkeys(str(i) for i in ids if is_uuid(str(i))))[:200]
+    done, refused = db.delete_calcs(s.user_id, ids)
+    return jresp({"deleted": done, "refused": refused})
+
+
 @router.get("/history", response_class=HTMLResponse)
 def history(request: Request, q: str = "", process: str = "0", mine: int = 0):
     s = load_session(request)
@@ -164,7 +180,7 @@ def history(request: Request, q: str = "", process: str = "0", mine: int = 0):
     proc = int(process) if process.isdigit() and 1 <= int(process) <= 10 else 0
     rows = db.list_calcs(s.user_id, s.ws["id"], q.strip()[:60], proc, bool(mine), tool) if s.ws else []
     return page(request, "history.html", s, rows=rows, q=q, process=process if (tool or proc) else "0", mine=mine,
-                tools=builtin.TOOLS)
+                tools=builtin.TOOLS, can_report=can_report(s), max_batch=MAX_BATCH)
 
 
 @router.post("/workspace/switch")

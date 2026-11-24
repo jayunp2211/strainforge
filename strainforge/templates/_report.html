@@ -1,10 +1,10 @@
-{# Report buttons inside the Save box: PDF and Excel of what the page shows. Paid feature (every active plan). #}
-<div class="reportbar" id="reportPanel" data-allowed="{{ '1' if can_report else '0' }}" data-user="{{ s.name }}" data-ws="{{ s.ws.name if s.ws else '' }}" data-title="{{ report_title }}" data-tool="{{ report_tool or '' }}" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+{# Report buttons inside the Save box: a PDF or Excel file of what the page shows, or print it. Paid feature (every active plan). #}
+<div class="reportbar" id="reportPanel" data-allowed="{{ '1' if can_report else '0' }}" data-title="{{ report_title }}" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
   {% if can_report %}
-  <div class="row-actions" style="margin-top:0;align-items:center">
-    <span class="eyebrow" style="margin-right:4px">Report</span>
-    <button class="btn" type="button" id="btnPdf">Download PDF</button>
-    <button class="btn" type="button" id="btnXlsx">Download Excel</button>
+  <div class="row-actions" style="margin-top:0;align-items:center;gap:6px">
+    <button class="btn sm" type="button" id="btnPdf" data-label="Download PDF">Download PDF</button>
+    <button class="btn sm" type="button" id="btnXlsx" data-label="Download Excel">Download Excel</button>
+    <button class="btn sm" type="button" id="btnPrint" data-label="Print">Print</button>
   </div>
   {% else %}
   <p class="sub small" style="margin:0">PDF and Excel reports come with the Personal and Team plans{% if not s.signed_in %}, free during early access{% endif %}. <a href="/pricing">See plans</a></p>

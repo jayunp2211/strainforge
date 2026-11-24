@@ -50,7 +50,7 @@ const U = {
   /** Plain number formatting with sensible decimals. */
   num(v, d) {
     if (typeof v !== 'number' || !isFinite(v)) return '—';
-    if (d === undefined) { const a = Math.abs(v); d = a >= 1000 ? 1 : a >= 100 ? 2 : a >= 1 ? 3 : 4; if (v === 0) d = 0; }
+    if (d === undefined) { const a = Math.abs(v); d = a >= 10000 ? 0 : a >= 1000 ? 1 : a >= 100 ? 2 : a >= 1 ? 3 : 4; if (v === 0) d = 0; }
     return v.toLocaleString('en-GB', { minimumFractionDigits: d, maximumFractionDigits: d });
   },
   /** Fill server-rendered quantities: <span data-qty="554.07" data-unit="kN" data-d="1">. */

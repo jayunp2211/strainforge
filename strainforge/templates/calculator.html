@@ -16,7 +16,7 @@
 </nav>
 
 <div class="bench">
-  <div class="stack">
+  <div class="stack b-top">
     <div class="panel" id="savePanel">
       {% if s.signed_in and s.ws %}
       <div class="savebar">
@@ -53,6 +53,8 @@
       <div class="field"><span class="lbl">Yield stress kf</span><div class="ro" id="roKf">—</div></div>
       <div class="field"><span class="lbl">Work hardening n</span><div class="ro" id="roN">—</div></div>
     </div>
+  </div>
+  <div class="stack b-fig">
     <div class="panel figpanel">
       <div class="phead"><h2>Drawing</h2>
         <div class="figtabs" role="tablist" aria-label="Drawing">
@@ -61,8 +63,10 @@
         </div>
       </div>
       <div class="figs" id="figs"></div>
-      <p class="hint small muted figtip">Click a dimension or an input below to see which is which. Click the drawing to enlarge it.</p>
+      <p class="hint small muted figtip">Click a dimension or an input to see which is which. Click the drawing to enlarge it.</p>
     </div>
+  </div>
+  <div class="stack b-vars">
     <div class="panel">
       <div class="phead"><h2>Variables</h2><span class="eyebrow" id="varCount"></span></div>
       <div id="autoVals"></div>
@@ -74,7 +78,7 @@
     </div>
   </div>
 
-  <div class="stack">
+  <div class="stack b-res">
     <div class="panel" id="resPanel">
       <div class="phead"><h2>Results</h2><span class="eyebrow" id="resSub"></span></div>
       <div class="kpis" id="kpis"></div>

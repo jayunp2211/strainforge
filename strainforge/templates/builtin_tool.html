@@ -33,6 +33,7 @@
       <p class="sub small" style="margin:0 0 10px">The tool is free to use. Create a free account to save results to your history and share them with your team.</p>
       <div class="row-actions" style="margin-top:0"><a class="btn primary" href="/signup?next=/tools/{{ t.slug }}" id="signupSave">Create free account</a><a class="btn" href="/login?next=/tools/{{ t.slug }}" id="loginSave">Sign in</a></div>
       {% endif %}
+      {% set report_title = saved.title if saved else t.title %}{% set report_tool = t.slug %}{% include "_report.html" %}
     </div>
     <div class="panel">
       <div class="phead"><h2>Quick start</h2><span class="chip ex" id="exChip" hidden>Example values</span></div>
@@ -74,7 +75,6 @@
       <div class="phead"><h2>Design checks</h2><span class="eyebrow">Limits</span></div>
       <div class="checks" id="checks"></div>
     </div>
-    {% set report_title = saved.title if saved else t.title %}{% set report_tool = t.slug %}{% include "_report.html" %}
   </div>
 </div>
 

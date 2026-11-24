@@ -37,6 +37,7 @@
       <p class="sub small" style="margin:0 0 10px">The calculator is free to use. Create an account to save calculations to your history and share them with your team.</p>
       <div class="row-actions" style="margin-top:0"><a class="btn primary" href="/signup">Create account</a><a class="btn" href="/login">Sign in</a></div>
       {% endif %}
+      {% set report_title = saved.title if saved else 'Cold forming calculation' %}{% include "_report.html" %}
     </div>
     <div class="panel">
       <div class="phead"><h2 id="procTitle">Process</h2><span class="chip ex" id="exChip" hidden>Example values</span></div>
@@ -94,7 +95,6 @@
       <div class="phead"><h2>Process checks</h2><span class="eyebrow">Tooling limits</span></div>
       <div class="checks" id="checks"></div>
     </div>
-    {% set report_title = saved.title if saved else 'Cold forming calculation' %}{% include "_report.html" %}
     <div class="panel">
       <div class="phead"><h2>Load sensitivity</h2><span class="eyebrow">Load F while one input moves ±30 %</span></div>
       <div class="chartctl"><label for="sensVar" class="eyebrow">Vary</label><select id="sensVar"></select></div>

@@ -1,17 +1,12 @@
-{# Report panel: PDF and Excel export of what the page shows. Paid feature (every active plan). #}
-<div class="panel" id="reportPanel" data-allowed="{{ '1' if can_report else '0' }}" data-user="{{ s.name }}" data-ws="{{ s.ws.name if s.ws else '' }}" data-title="{{ report_title }}" data-tool="{{ report_tool or '' }}">
-  <div class="phead" style="margin-bottom:6px"><h2>Report</h2><span class="eyebrow">PDF or Excel</span></div>
+{# Report buttons inside the Save box: PDF and Excel of what the page shows. Paid feature (every active plan). #}
+<div class="reportbar" id="reportPanel" data-allowed="{{ '1' if can_report else '0' }}" data-user="{{ s.name }}" data-ws="{{ s.ws.name if s.ws else '' }}" data-title="{{ report_title }}" data-tool="{{ report_tool or '' }}" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
   {% if can_report %}
-  <p class="sub small" style="margin:0 0 10px">Download the inputs, results, checks and drawing as a report to attach to a tool drawing.</p>
-  <div class="row-actions" style="margin-top:0">
-    <button class="btn" type="button" id="btnPdf">PDF report</button>
-    <button class="btn" type="button" id="btnXlsx">Excel report</button>
+  <div class="row-actions" style="margin-top:0;align-items:center">
+    <span class="eyebrow" style="margin-right:4px">Report</span>
+    <button class="btn" type="button" id="btnPdf">Download PDF</button>
+    <button class="btn" type="button" id="btnXlsx">Download Excel</button>
   </div>
-  {% elif s.signed_in %}
-  <p class="sub small" style="margin:0 0 10px">PDF and Excel reports come with the Personal and Team plans.</p>
-  <div class="row-actions" style="margin-top:0"><a class="btn" href="/pricing">See plans</a></div>
   {% else %}
-  <p class="sub small" style="margin:0 0 10px">PDF and Excel reports come with the Personal and Team plans, free during early access.</p>
-  <div class="row-actions" style="margin-top:0"><a class="btn" href="/pricing">See plans</a></div>
+  <p class="sub small" style="margin:0">PDF and Excel reports come with the Personal and Team plans{% if not s.signed_in %}, free during early access{% endif %}. <a href="/pricing">See plans</a></p>
   {% endif %}
 </div>

@@ -1,19 +1,46 @@
 {% extends "base.html" %}
 {% block title %}History · Strainforge{% endblock %}
 {% block body %}
+{% set view_name = current.name if current else ('Not in a project' if project == 'none' else 'All calculations') %}
 <div class="pagehead">
   <div>
-    <h1>{{ s.ws.name if s.ws else 'History' }}</h1>
-    <p class="sub">{% if s.ws and s.ws.kind == 'team' %}Every calculation saved by your team. Anyone in the team can open and update them; each save keeps a version.{% else %}Your saved calculations. Open one to keep working on it.{% endif %}</p>
+    <span class="eyebrow">{{ s.ws.name if s.ws else 'History' }}{% if s.ws and s.ws.kind == 'team' %} · shared with your team{% endif %}</span>
+    <h1>{{ view_name }}</h1>
+    <p class="sub">{% if current %}{% if current.description %}{{ current.description }} · {% endif %}{{ current.n }} calculation{{ '' if current.n == 1 else 's' }} · started by {{ current.created_by_name or 'someone' }}{% elif project == 'none' %}Saved calculations that aren't filed under a project yet. Select some and use <b>Move to project</b>.{% elif s.ws and s.ws.kind == 'team' %}Every calculation saved by your team. Anyone in the team can open and update them; each save keeps a version.{% else %}Your saved calculations. Open one to keep working on it.{% endif %}</p>
   </div>
-  <a class="btn primary" href="/calculator">New calculation</a>
+  <div class="actions">
+    {% if can_edit_project %}
+    <button class="btn" type="button" id="projEdit">Rename</button>
+    <button class="btn danger" type="button" id="projDel" data-name="{{ current.name }}" data-n="{{ current.n }}">Delete project</button>
+    {% endif %}
+    <a class="btn primary" href="/tools{% if current %}?project={{ current.id }}{% endif %}">New calculation{% if current %} in this project{% endif %}</a>
+  </div>
 </div>
-<div class="panel">
+<div class="histlayout">
+<aside class="panel projnav" aria-label="Projects">
+  <a class="pn-item{% if not project %} on{% endif %}" href="/history" {% if not project %}aria-current="page"{% endif %}><span class="pn-name">All calculations</span><span class="pn-n">{{ counts.all or 0 }}</span></a>
+  <a class="pn-item{% if project == 'none' %} on{% endif %}" href="/history?project=none" {% if project == 'none' %}aria-current="page"{% endif %}><span class="pn-name">Not in a project</span><span class="pn-n">{{ counts.none or 0 }}</span></a>
+  <div class="pn-head"><h2>Projects</h2><button class="btn sm" type="button" id="projNew" aria-expanded="false" aria-controls="projNewForm">+ New</button></div>
+  <form class="pn-new" id="projNewForm" hidden>
+    <input class="tf" id="projNewName" maxlength="80" placeholder="e.g. M10 flange bolt, customer X" aria-label="Project name" required>
+    <div class="pn-new-row"><button class="btn sm primary" type="submit">Create</button><button class="btn sm" type="button" id="projNewCancel">Cancel</button></div>
+  </form>
+  {% for p in projects %}
+  <a class="pn-item pn-proj{% if current and current.id == p.id %} on{% endif %}" href="/history?project={{ p.id }}" {% if current and current.id == p.id %}aria-current="page"{% endif %}>
+    <span class="pn-ic" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M1.5 4.2c0-.9.7-1.6 1.6-1.6h3l1.5 1.6h5.3c.9 0 1.6.7 1.6 1.6v6.1c0 .9-.7 1.6-1.6 1.6H3.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></span>
+    <span class="pn-name">{{ p.name }}<span class="pn-when">{{ p.updated_at|when }}</span></span><span class="pn-n">{{ p.n }}</span>
+  </a>
+  {% else %}
+  <p class="pn-empty">No projects yet. A project keeps the calculations for one part, die set or customer together, from any tool.</p>
+  {% endfor %}
+</aside>
+<div class="panel histmain">
   <form class="filters" method="get" action="/history">
+    {% if project %}<input type="hidden" name="project" value="{{ project }}">{% endif %}
     <input type="search" name="q" value="{{ q }}" placeholder="Search by name, material or notes" aria-label="Search">
     <select name="process" aria-label="Process" onchange="this.form.submit()">
-      <option value="0">All processes</option>
-      <optgroup label="Main calculator">{% for p in PROCESSES %}<option value="{{ loop.index }}" {% if process == loop.index|string %}selected{% endif %}>{{ p }}</option>{% endfor %}</optgroup>
+      <option value="0">All calculators</option>
+      <optgroup label="Forming load &amp; energy">{% for p in PROCESSES %}<option value="{{ loop.index }}" {% if process == loop.index|string %}selected{% endif %}>{{ p }}</option>{% endfor %}</optgroup>
       <optgroup label="Tools">{% for slug, t in tools.items() %}<option value="t:{{ slug }}" {% if process == 't:' ~ slug %}selected{% endif %}>{{ t.title }}</option>{% endfor %}</optgroup>
     </select>
     {% if s.ws and s.ws.kind == 'team' %}
@@ -28,6 +55,16 @@
     <button class="btn sm" type="button" id="bulkPdf" data-label="Download PDF">Download PDF</button>
     <button class="btn sm" type="button" id="bulkXlsx" data-label="Download Excel">Download Excel</button>
     {% endif %}
+    <span class="movebox">
+      <select id="moveSel" aria-label="Move to project">
+        <option value="">Move to project…</option>
+        {% for p in projects|sort(attribute='name') %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        <option value="none">No project</option>
+        <option value="__new__">+ New project…</option>
+      </select>
+      <input id="moveNew" maxlength="80" placeholder="New project name" aria-label="New project name" hidden>
+      <button class="btn sm" type="button" id="moveGo" hidden>Move</button>
+    </span>
     <button class="btn sm danger" type="button" id="bulkDel" data-label="Delete">Delete</button>
     <button class="btn sm" type="button" id="bulkClear">Clear selection</button>
     {% if not can_report %}<span class="small muted">PDF and Excel reports come with the Personal and Team plans. <a href="/pricing">See plans</a></span>{% endif %}
@@ -39,7 +76,7 @@
     {% for r in rows %}
       <tr id="row-{{ r.id }}">
         <td class="pick"><input type="checkbox" class="pickRow" value="{{ r.id }}" data-del="{{ '1' if (s.is_admin or (r.created_by|string) == s.user_id) else '0' }}" aria-label="Select {{ r.title }}"></td>
-        <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="{% if r.tool %}/tools/{{ r.tool }}{% else %}/calculator{% endif %}?calc={{ r.id }}">{{ r.title }}</a>{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
+        <td><span class="status {{ r.summary.status or 'ok' }}" title="{{ {'ok':'All checks pass','warn':'Check warnings','bad':'A check fails'}[r.summary.status or 'ok'] }}"></span><a class="ttl" href="{% if r.tool %}/calculator/{{ r.tool }}{% else %}/calculator{% endif %}?calc={{ r.id }}">{{ r.title }}</a>{% if r.project_id and not current %}<div><a class="pchip" href="/history?project={{ r.project_id }}" title="Open the project">{{ r.project_name }}</a></div>{% endif %}{% if r.notes %}<div class="small muted">{{ r.notes[:90] }}{% if r.notes|length > 90 %}…{% endif %}</div>{% endif %}</td>
         {% if r.tool %}
         <td>{{ tools[r.tool].title if r.tool in tools else r.tool }}<div class="small muted">Tool</div></td>
         <td>—</td>
@@ -59,10 +96,26 @@
   </div>
   {% else %}
   <div class="empty">
-    {% if q or process != '0' or mine %}Nothing matches that search.{% else %}No saved calculations yet. Open the <a href="/calculator">calculator</a> or one of the <a href="/tools">tools</a>, enter your dimensions and press <b>Save</b>.{% endif %}
+    {% if q or process != '0' or mine %}Nothing matches that search.
+    {% elif current %}Nothing in this project yet. <a href="/tools?project={{ current.id }}">Open a tool</a> and save with <b>{{ current.name }}</b> picked as the project, or move saved calculations here from <a href="/history">All calculations</a>.
+    {% elif project == 'none' %}Every saved calculation is in a project.
+    {% else %}No saved calculations yet. Open one of the <a href="/tools">tools</a>, enter your dimensions and press <b>Save</b>.{% endif %}
   </div>
   {% endif %}
 </div>
+</div>
+{% if can_edit_project %}
+<dialog class="projdlg" id="projDlg" aria-labelledby="projDlgH">
+  <form id="projDlgForm">
+    <h2 id="projDlgH">Project details</h2>
+    <label class="small" for="projName">Name</label>
+    <input class="tf" id="projName" maxlength="80" value="{{ current.name }}" required>
+    <label class="small" for="projDesc">Description <span class="muted">(optional)</span></label>
+    <textarea class="tf" id="projDesc" maxlength="500" rows="3" placeholder="Customer, part number, press line…">{{ current.description }}</textarea>
+    <div class="row-actions"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="projDlgCancel">Cancel</button></div>
+  </form>
+</dialog>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 {% if can_report %}<script src="/static/report.js?v={{ config.ASSET_VERSION }}"></script>{% endif %}
@@ -113,6 +166,54 @@ if ($('pickAll')) {
     } catch (e) { alert(e.message || 'Could not delete'); }
     finally { btn.textContent = 'Delete'; sync(); }
   });
+}
+// ---- projects
+async function send(url, method, body) {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(out.error || 'Something went wrong');
+  return out;
+}
+const nf = $('projNewForm');
+function newOpen(open) { nf.hidden = !open; $('projNew').setAttribute('aria-expanded', open); if (open) $('projNewName').focus(); }
+$('projNew').addEventListener('click', () => newOpen(nf.hidden));
+$('projNewCancel').addEventListener('click', () => newOpen(false));
+nf.addEventListener('submit', async e => {
+  e.preventDefault();
+  try { const p = await send('/api/projects', 'POST', { name: $('projNewName').value }); location.href = '/history?project=' + p.id; }
+  catch (err) { alert(err.message); }
+});
+if ($('projEdit')) {
+  const dlg = $('projDlg');
+  $('projEdit').addEventListener('click', () => dlg.showModal());
+  $('projDlgCancel').addEventListener('click', () => dlg.close());
+  $('projDlgForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    try { await send('/api/projects/{{ current.id if current else '' }}', 'PUT', { name: $('projName').value, description: $('projDesc').value }); location.reload(); }
+    catch (err) { alert(err.message); }
+  });
+  $('projDel').addEventListener('click', async () => {
+    const b = $('projDel'), n = +b.dataset.n;
+    if (!confirm(`Delete the project “${b.dataset.name}”?` + (n ? `\n\nIts ${n} calculation${n > 1 ? 's stay' : ' stays'} saved under “Not in a project”.` : ''))) return;
+    try { await send('/api/projects/{{ current.id if current else '' }}', 'DELETE'); location.href = '/history'; }
+    catch (err) { alert(err.message); }
+  });
+}
+if ($('moveSel')) {
+  const ms = $('moveSel'), mn = $('moveNew'), go = $('moveGo');
+  ms.addEventListener('change', () => { mn.hidden = ms.value !== '__new__'; go.hidden = !ms.value; if (!mn.hidden) mn.focus(); });
+  const move = async () => {
+    const ids = picked().map(b => b.value);
+    if (!ids.length || !ms.value) return;
+    const body = { ids };
+    if (ms.value === '__new__') { if (!mn.value.trim()) { mn.focus(); return; } body.new_project = mn.value; }
+    else body.project_id = ms.value === 'none' ? null : ms.value;
+    go.disabled = true;
+    try { const out = await send('/api/calculations/move', 'POST', body); location.href = out.project_id ? '/history?project=' + out.project_id : location.href; }
+    catch (err) { alert(err.message); go.disabled = false; }
+  };
+  go.addEventListener('click', move);
+  mn.addEventListener('keydown', e => { if (e.key === 'Enter') move(); });
 }
 document.querySelectorAll('[data-delone]').forEach(b => b.addEventListener('click', async () => {
   if (!confirm('Delete “' + b.dataset.title + '” and its version history? This cannot be undone.')) return;

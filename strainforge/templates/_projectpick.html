@@ -1,0 +1,11 @@
+{# Project picker in the Save box. static/projects.js fills it and both calculators read it when saving. #}
+<div class="projpick" id="projPick">
+  <label for="calcProject">Project</label>
+  <div class="projpick-row">
+    <select class="tf" id="calcProject" aria-describedby="projHint">
+      <option value="">No project</option>
+    </select>
+    <input class="tf" id="newProject" maxlength="80" placeholder="New project name, e.g. M10 flange bolt line" aria-label="New project name" hidden>
+  </div>
+  <div class="hint small muted" id="projHint">Keep calculations from any tool together under one job.</div>
+</div>

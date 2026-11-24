@@ -20,7 +20,7 @@ from psycopg.types.json import Jsonb
 
 from . import config
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 SCHEMA = """
 create extension if not exists pgcrypto;
 create table if not exists users (
@@ -154,14 +154,28 @@ alter table users add column if not exists last_seen_at timestamptz;
 -- v4: results saved from the built-in tool pages (process/shape are 0 for those rows)
 alter table calculations add column if not exists tool text;
 alter table calculation_versions add column if not exists tool text;
+-- v5: projects group saved results (from any calculator) inside a workspace
+create table if not exists projects (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  name text not null,
+  description text not null default '',
+  created_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists projects_ws_name on projects (workspace_id, lower(name));
+alter table calculations add column if not exists project_id uuid references projects(id) on delete set null;
+create index if not exists calculations_project on calculations(project_id, updated_at desc);
 """
 
 SESSION_DAYS = 30
 CALC_COLS = ("c.id, c.workspace_id, c.title, c.tool, c.process, c.shape, c.material, c.inputs, c.summary, c.notes, "
-             "c.created_by, c.updated_by, c.created_at, c.updated_at, "
+             "c.created_by, c.updated_by, c.created_at, c.updated_at, c.project_id, p.name as project_name, "
              "coalesce(nullif(cu.full_name,''), cu.email) as created_by_name, "
              "coalesce(nullif(uu.full_name,''), uu.email) as updated_by_name")
-CALC_FROM = "calculations c left join users cu on cu.id = c.created_by left join users uu on uu.id = c.updated_by"
+CALC_FROM = ("calculations c left join users cu on cu.id = c.created_by left join users uu on uu.id = c.updated_by "
+             "left join projects p on p.id = c.project_id")
 
 
 class Denied(Exception):
@@ -516,7 +530,8 @@ def accept_invite(uid, token):
 
 # ------------------------------------------------------------------ calculations
 
-def list_calcs(uid, ws_id, term="", process=0, mine=False, tool=""):
+def list_calcs(uid, ws_id, term="", process=0, mine=False, tool="", project=""):
+    """project: "" for all, "none" for results outside any project, or a project id."""
     _need_member(uid, ws_id)
     sql = (f"select {CALC_COLS} from {CALC_FROM} where c.workspace_id = %s")
     args = [ws_id]
@@ -533,6 +548,11 @@ def list_calcs(uid, ws_id, term="", process=0, mine=False, tool=""):
     if mine:
         sql += " and c.created_by = %s"
         args.append(uid)
+    if project == "none":
+        sql += " and c.project_id is null"
+    elif project:
+        sql += " and c.project_id = %s"
+        args.append(project)
     return q(sql + " order by c.updated_at desc limit 300", args)
 
 
@@ -553,11 +573,13 @@ def _version(cur, cid, row, uid):
 def create_calc(uid, ws_id, row):
     _need_paid(_need_member(uid, ws_id))
     with tx() as cur:
-        cur.execute("insert into calculations(workspace_id, title, tool, process, shape, material, inputs, summary, notes, created_by, updated_by) "
-                    "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id",
+        pid = _project_for(cur, uid, ws_id, row.get("project"))
+        cur.execute("insert into calculations(workspace_id, title, tool, process, shape, material, inputs, summary, notes, "
+                    "created_by, updated_by, project_id) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id",
                     (ws_id, row["title"], row.get("tool"), row["process"], row["shape"], row["material"], Jsonb(row["inputs"]),
-                     Jsonb(row["summary"]), row["notes"], uid, uid))
+                     Jsonb(row["summary"]), row["notes"], uid, uid, pid))
         cid = cur.fetchone()["id"]
+        _touch_project(cur, pid)
         _version(cur, cid, row, uid)
     return get_calc(uid, cid)
 
@@ -574,6 +596,11 @@ def update_calc(uid, cid, row, expected=None):
                "updated_by=%s, updated_at=now() where id=%s")
         args = [row["title"], row["process"], row["shape"], row["material"], Jsonb(row["inputs"]), Jsonb(row["summary"]),
                 row["notes"], uid, cid]
+        pid = cur_row.get("project_id")
+        if "project" in row:  # older pages don't send a project; leave it as it is then
+            pid = _project_for(cur, uid, cur_row["workspace_id"], row["project"])
+            sql = sql.replace("updated_by=%s,", "updated_by=%s, project_id=%s,")
+            args.insert(-1, pid)
         if expected:
             sql += " and date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', %s::timestamptz)"
             args.append(expected)
@@ -581,6 +608,7 @@ def update_calc(uid, cid, row, expected=None):
         if not cur.fetchone():
             raise Conflict(None)
         _version(cur, cid, row, uid)
+        _touch_project(cur, pid)
     return get_calc(uid, cid)
 
 
@@ -620,6 +648,113 @@ def versions(uid, cid):
     return q("select v.id, v.title, v.tool, v.process, v.shape, v.material, v.inputs, v.summary, v.notes, v.created_at, "
              "coalesce(nullif(u.full_name,''), u.email) as edited_by_name from calculation_versions v "
              "left join users u on u.id = v.edited_by where v.calculation_id = %s order by v.id desc limit 50", (cid,))
+
+
+# ------------------------------------------------------------------ projects
+# A project groups saved results from any calculator inside one workspace. Every member can
+# create projects and file results in them; renaming and deleting is for the creator or an admin.
+# Deleting a project keeps its results (they move to "not in a project").
+
+PROJECT_COLS = ("p.id, p.workspace_id, p.name, p.description, p.created_by, p.created_at, "
+                "greatest(p.updated_at, coalesce(max(c.updated_at), p.updated_at)) as updated_at, count(c.id) as n, "
+                "coalesce(nullif(u.full_name,''), u.email) as created_by_name")
+PROJECT_FROM = ("projects p left join calculations c on c.project_id = p.id left join users u on u.id = p.created_by")
+
+
+def _clean_name(name) -> str:
+    name = " ".join(str(name or "").split())[:80]
+    if not name:
+        raise ValueError("Give the project a name.")
+    return name
+
+
+def projects(uid, ws_id):
+    _need_member(uid, ws_id)
+    return q(f"select {PROJECT_COLS} from {PROJECT_FROM} where p.workspace_id = %s "
+             "group by p.id, u.full_name, u.email order by 7 desc, lower(p.name)", (ws_id,))
+
+
+def get_project(uid, pid):
+    row = q1(f"select {PROJECT_COLS} from {PROJECT_FROM} where p.id = %s group by p.id, u.full_name, u.email", (pid,))
+    if not row or not _role(uid, row["workspace_id"]):
+        return None
+    return row
+
+
+def _create_project(cur, uid, ws_id, name, description=""):
+    """Create a project, or return the one that already has this name (names are unique per workspace)."""
+    name = _clean_name(name)
+    cur.execute("insert into projects(workspace_id, name, description, created_by) values (%s,%s,%s,%s) "
+                "on conflict (workspace_id, lower(name)) do nothing returning id",
+                (ws_id, name, str(description or "")[:500], uid))
+    got = cur.fetchone()
+    if got:
+        return got["id"]
+    cur.execute("select id from projects where workspace_id = %s and lower(name) = lower(%s)", (ws_id, name))
+    return cur.fetchone()["id"]
+
+
+def create_project(uid, ws_id, name, description=""):
+    _need_paid(_need_member(uid, ws_id))
+    with tx() as cur:
+        pid = _create_project(cur, uid, ws_id, name, description)
+    return get_project(uid, pid)
+
+
+def _project_for(cur, uid, ws_id, want):
+    """Resolve what a save asked for: None, {"id": ...} or {"new": name} -> a project id in ws_id (or None)."""
+    if not want:
+        return None
+    if want.get("new"):
+        return _create_project(cur, uid, ws_id, want["new"])
+    cur.execute("select id from projects where id = %s and workspace_id = %s", (want.get("id"), ws_id))
+    got = cur.fetchone()
+    if not got:
+        raise Denied("That project no longer exists in this workspace.")
+    return got["id"]
+
+
+def _touch_project(cur, pid):
+    if pid:
+        cur.execute("update projects set updated_at = now() where id = %s", (pid,))
+
+
+def _need_project_owner(uid, pid):
+    row = get_project(uid, pid)
+    if not row:
+        raise Denied("That project no longer exists or isn't shared with you.")
+    r = _need_member(uid, row["workspace_id"])
+    if r["role"] != "admin" and str(row["created_by"]) != str(uid):
+        raise Denied("Only an admin or the person who created the project can change it.")
+    return row
+
+
+def update_project(uid, pid, name, description=""):
+    row = _need_project_owner(uid, pid)
+    name = _clean_name(name)
+    try:
+        q("update projects set name = %s, description = %s, updated_at = now() where id = %s",
+          (name, str(description or "")[:500], pid))
+    except psycopg.errors.UniqueViolation:
+        raise ValueError(f"There is already a project called {name}.")
+    return get_project(uid, row["id"])
+
+
+def delete_project(uid, pid):
+    _need_project_owner(uid, pid)
+    q("delete from projects where id = %s", (pid,))
+
+
+def move_calcs(uid, ws_id, ids, want):
+    """File saved results under a project (or none). Any member can, as any member can edit them."""
+    _need_paid(_need_member(uid, ws_id))
+    with tx() as cur:
+        pid = _project_for(cur, uid, ws_id, want)
+        cur.execute("update calculations set project_id = %s where workspace_id = %s and id = any(%s::uuid[]) returning id",
+                    (pid, ws_id, list(ids)))
+        moved = [str(r["id"]) for r in cur.fetchall()]
+        _touch_project(cur, pid)
+    return moved, (str(pid) if pid else None)
 
 
 # ------------------------------------------------------------------ materials
@@ -749,7 +884,7 @@ def save_tool(uid, tid, slug, title, summary, spec, published):
             row = q1("insert into calculators(slug, title, summary, spec, published, created_by, updated_by) "
                      "values (%s,%s,%s,%s,%s,%s,%s) returning id", (slug, title, summary, Jsonb(spec), published, uid, uid))
     except psycopg.errors.UniqueViolation:
-        raise ValueError(f"Another calculator already uses the address /tools/{slug}.")
+        raise ValueError(f"Another calculator already uses the address /calculator/{slug}.")
     _tools_changed()
     return str(row["id"])
 

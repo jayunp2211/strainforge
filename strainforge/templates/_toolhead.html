@@ -1,0 +1,16 @@
+{# Title bar shown above every calculator: where you are, the tool's name, and a switcher for the other tools. #}
+<header class="toolhead">
+  <div class="toolhead-top">
+    <div class="toolhead-main">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="{{ '/tools' if s.is_site_admin else '/' }}">Tools</a><span aria-hidden="true">/</span><span>Calculator</span></nav>
+      <h1>{{ head_title }}</h1>
+      {% if head_sub %}<p class="sub">{{ head_sub }}</p>{% endif %}
+    </div>
+    {% if head_actions %}<div class="actions">{{ head_actions }}</div>{% endif %}
+  </div>
+  {% if tool_nav and tool_nav|length > 1 %}
+  <nav class="tooltabs" aria-label="Calculators">
+    {% for it in tool_nav %}<a href="{{ it.href }}" {% if it.slug == tool_slug %}aria-current="page"{% endif %}>{{ it.title }}</a>{% endfor %}
+  </nav>
+  {% endif %}
+</header>

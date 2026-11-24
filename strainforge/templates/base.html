@@ -26,7 +26,7 @@
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-{% set home = '/calculator' if s.is_site_admin else '/' %}
+{% set tools_home = '/tools' if s.is_site_admin else '/' %}
 <header class="topbar">
   <div class="topbar-in">
     <a class="brand" href="/" aria-label="Strainforge home">
@@ -35,8 +35,8 @@
     </a>
     <nav class="mainnav" aria-label="Main">
       {% if s.is_site_admin %}<a href="/" {% if path in ('/', '/admin') %}aria-current="page"{% endif %}>Dashboard</a>{% endif %}
-      <a href="{{ home }}" {% if path in ('/calculator',) or (path == '/' and not s.is_site_admin) %}aria-current="page"{% endif %}>Calculator</a>
-      {% if nav_tools or s.is_site_admin %}<a href="/tools" {% if path.startswith('/tools') or path.startswith('/admin/tools') %}aria-current="page"{% endif %}>Tools</a>{% endif %}
+      <a href="{{ tools_home }}" {% if path == '/tools' or path.startswith('/admin/tools') or (path == '/' and not s.is_site_admin) %}aria-current="page"{% endif %}>Tools</a>
+      <a href="/calculator" {% if path == '/calculator' or path.startswith('/calculator/') %}aria-current="page"{% endif %}>Calculator</a>
       {% if s.signed_in %}
       <a href="/history" {% if path == '/history' %}aria-current="page"{% endif %}>History</a>
       <a href="/team" {% if path == '/team' %}aria-current="page"{% endif %}>Team</a>

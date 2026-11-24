@@ -143,20 +143,36 @@ def load_session(request: Request) -> Session:
 def page(request: Request, name: str, s: Session, status_code=200, **ctx):
     ctx.setdefault("msg", request.query_params.get("msg", ""))
     ctx.setdefault("err", request.query_params.get("err", ""))
-    ctx.setdefault("nav_tools", has_tools())
     return templates.TemplateResponse(request, name, {"s": s, "path": request.url.path, **ctx}, status_code=status_code)
 
 
-def has_tools() -> bool:
+def project_choice(body) -> dict | None | bool:
+    """The project a save or move asks for: {"id": ...}, {"new": name}, None (no project),
+    or False when the request doesn't mention a project at all (older pages)."""
+    if not isinstance(body, dict) or ("project_id" not in body and "new_project" not in body):
+        return False
+    new = " ".join(str(body.get("new_project") or "").split())[:80]
+    if new:
+        return {"new": new}
+    pid = body.get("project_id")
+    if not pid:
+        return None
+    if not is_uuid(pid):
+        raise ValueError("unknown project")
+    return {"id": str(pid)}
+
+
+def tool_nav() -> list[dict]:
+    """Every calculator, in the order the Tools page shows them, for the title bar's switcher."""
     from .. import builtin
-    if builtin.TOOLS:
-        return True
-    if not config.DATABASE_URL:
-        return False
-    try:
-        return bool(db.tools(published_only=True))
-    except Exception:  # the nav must render even if the database is briefly unreachable
-        return False
+    items = [{"slug": "", "title": "Forming load & energy", "href": "/calculator"}]
+    items += [{"slug": b["slug"], "title": b["title"], "href": f"/calculator/{b['slug']}"} for b in builtin.TOOLS.values()]
+    if config.DATABASE_URL:
+        try:
+            items += [{"slug": t["slug"], "title": t["title"], "href": f"/calculator/{t['slug']}"} for t in db.tools(published_only=True)]
+        except Exception:  # the page must render even if the database is briefly unreachable
+            pass
+    return items
 
 
 ACTIVE_PLANS = ("early_access", "trial", "personal", "team")

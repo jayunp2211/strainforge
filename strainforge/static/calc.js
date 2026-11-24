@@ -328,6 +328,7 @@ window.SFReportSource = () => {
 
 async function save(asNew, force) {
   const b = payload();
+  try { Object.assign(b, window.SFProject.body()); } catch (e) { toast(e.message); return; }
   if (!b.title.trim()) { $('calcTitle').focus(); $('calcTitle').placeholder = 'Give it a name first'; return; }
   if (asNew && state.saved) b.title = b.title.replace(/( \(copy\))?$/, ' (copy)');
   const update = state.saved && !asNew;
@@ -339,6 +340,7 @@ async function save(asNew, force) {
     if (r.status === 409) { showConflict(out.current); return; }
     if (!r.ok) throw new Error(out.error || 'Could not save');
     adopt(out, false);
+    window.SFProject.adopt(out);
     $('conflict').hidden = true;
     history.replaceState(null, '', '/calculator?calc=' + out.id);
     toast(update ? 'Changes saved' : 'Saved to ' + BOOT.workspace.name);
@@ -372,6 +374,7 @@ function adopt(row, loadInputs) {
     state.p = row.process; state.shape[row.process] = row.shape; state.mat = row.material;
     state.inputs[row.process + '-' + row.shape] = inp; state.example[row.process + '-' + row.shape] = false;
     $('calcTitle').value = row.title; $('calcNotes').value = row.notes || '';
+    window.SFProject.adopt(row);
     if (row.notes) $('notesBox').open = true;
     drawMatSelect(); render();
   }
@@ -385,6 +388,7 @@ if (canSave) {
   $('btnSaveNew').addEventListener('click', () => save(true));
   $('calcTitle').addEventListener('input', touch);
   $('calcNotes').addEventListener('input', touch);
+  window.SFProject.onChange(touch);
   $('calcTitle').addEventListener('keydown', e => { if (e.key === 'Enter') save(false); });
   document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(false); } });
   $('versionsBox').addEventListener('toggle', async () => {

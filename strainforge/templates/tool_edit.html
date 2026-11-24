@@ -8,7 +8,7 @@
     <p class="sub">Name the inputs, then write each result as a formula. Results can use inputs and any result above them. The preview updates as you type.</p>
   </div>
   <div class="actions">
-    {% if t.id %}<a class="btn" href="/tools/{{ t.slug }}" target="_blank" rel="noopener">Open page</a>{% endif %}
+    {% if t.id %}<a class="btn" href="/calculator/{{ t.slug }}" target="_blank" rel="noopener">Open page</a>{% endif %}
     <button class="btn primary" type="button" data-save>Save</button>
   </div>
 </div>
@@ -18,7 +18,7 @@
       <div class="phead"><h2>Details</h2></div>
       <div class="form-grid">
         <label>Name <span class="hint">Shown as the page title, e.g. “Wire weight per 1000 parts”</span><input id="title" maxlength="80" value="{{ t.title }}"></label>
-        <label>Web address <span class="hint">strainforge.vercel.app/tools/<b id="slugShow">{{ t.slug or '…' }}</b> · lowercase letters, digits and dashes</span><input id="slug" maxlength="60" value="{{ t.slug }}" placeholder="made from the name if empty"></label>
+        <label>Web address <span class="hint">strainforge.vercel.app/calculator/<b id="slugShow">{{ t.slug or '…' }}</b> · lowercase letters, digits and dashes</span><input id="slug" maxlength="60" value="{{ t.slug }}" placeholder="made from the name if empty"></label>
         <label>Short description <span class="hint">One sentence on the Tools page</span><input id="summary" maxlength="240" value="{{ t.summary }}"></label>
         <div style="display:flex;gap:22px;flex-wrap:wrap">
           <label class="switch"><input type="checkbox" id="material" {% if t.spec.material %}checked{% endif %}> Uses a material</label>

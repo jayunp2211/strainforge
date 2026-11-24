@@ -90,6 +90,16 @@
       <form method="post" action="/team/rename" class="savebar"><div class="row"><input class="tf" name="name" value="{{ s.ws.name }}" maxlength="80" aria-label="Workspace name"><button class="btn" type="submit">Rename</button></div></form>
     </div>
     {% endif %}
+    {% if s.ws and s.ws.kind == 'team' and s.ws.owner_id == s.user_id %}
+    <div class="panel" id="delete">
+      <div class="phead"><h2>Delete workspace</h2></div>
+      <p class="sub small" style="margin:0 0 10px">This permanently deletes {{ s.ws.name }} with all its saved calculations, custom materials and invites, and removes everyone from it. It can't be undone.</p>
+      <form method="post" action="/team/delete" class="savebar"><div class="row">
+        <input class="tf" name="confirm" maxlength="80" autocomplete="off" required placeholder="Type {{ s.ws.name }} to confirm" aria-label="Type the workspace name to confirm">
+        <button class="btn danger" type="submit">Delete workspace</button>
+      </div></form>
+    </div>
+    {% endif %}
     <div class="panel">
       {% if s.is_site_admin %}
       <div class="phead"><h2>Plan</h2><span class="chip">Site owner</span></div>

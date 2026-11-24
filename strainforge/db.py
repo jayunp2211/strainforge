@@ -430,6 +430,20 @@ def rename_workspace(uid, ws_id, name):
     q("update workspaces set name = %s where id = %s", (name, ws_id))
 
 
+def delete_workspace(uid, ws_id, confirm_name):
+    """Delete a team workspace with its calculations, materials, invites and memberships (owner only)."""
+    r = _need_member(uid, ws_id)
+    if str(r["owner_id"]) != str(uid):
+        raise Denied("Only the person who created this workspace can delete it.")
+    if r["kind"] != "team":
+        raise Denied("Your personal workspace can't be deleted.")
+    name = q1("select name from workspaces where id = %s", (ws_id,))["name"]
+    if confirm_name.strip() != name.strip():
+        raise ValueError("Type the workspace name exactly to confirm.")
+    q("delete from workspaces where id = %s", (ws_id,))
+    return name
+
+
 def members(uid, ws_id):
     _need_member(uid, ws_id)
     return q("select m.user_id, m.role, m.created_at, u.full_name as name, u.email, (w.owner_id = m.user_id) as owner "

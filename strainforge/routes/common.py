@@ -148,6 +148,9 @@ def page(request: Request, name: str, s: Session, status_code=200, **ctx):
 
 
 def has_tools() -> bool:
+    from .. import builtin
+    if builtin.TOOLS:
+        return True
     if not config.DATABASE_URL:
         return False
     try:

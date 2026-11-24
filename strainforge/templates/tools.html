@@ -14,6 +14,14 @@
     <p>Load, energy, deformation grade and tooling checks for all 10 processes and 16 product shapes.</p>
     <span class="go">Open →</span>
   </a>
+  {% for b in builtins %}
+  <a class="panel toolcard" href="/tools/{{ b.slug }}">
+    <span class="eyebrow">Tool design</span>
+    <h2>{{ b.title }}</h2>
+    <p>{{ b.summary }}</p>
+    <span class="go">Open →</span>
+  </a>
+  {% endfor %}
   {% for t in tools %}
   <a class="panel toolcard" href="/tools/{{ t.slug }}">
     <span class="eyebrow">{{ t.spec.inputs|length }} inputs · {{ t.spec.outputs|length }} results</span>
@@ -24,6 +32,6 @@
   {% endfor %}
 </div>
 {% if s.is_site_admin and not tools %}
-<p class="sub small" style="margin-top:16px">Only the main calculator is live. Build more from your <a href="/#tools">dashboard</a>.</p>
+<p class="sub small" style="margin-top:16px">No calculators of your own are live yet. Build them from your <a href="/#tools">dashboard</a>.</p>
 {% endif %}
 {% endblock %}

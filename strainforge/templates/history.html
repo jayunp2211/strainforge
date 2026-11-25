@@ -113,6 +113,20 @@
 </div>
 </div>
 {% if can_edit_project %}
+<dialog class="projdlg warn" id="projDelDlg" aria-labelledby="projDelH" aria-describedby="projDelBody">
+  <div class="warnhead"><span class="warnic" aria-hidden="true">!</span><h2 id="projDelH" class="plain">Delete “{{ current.name }}”?</h2></div>
+  <div id="projDelBody">
+    {% if current.n %}
+    <p>This permanently deletes the project <b>and the {{ current.n }} calculation{{ '' if current.n == 1 else 's' }} saved in it</b>, with their version history{% if s.ws.kind == 'team' %}, for everyone in {{ s.ws.name }}{% endif %}. This can't be undone.</p>
+    <ul class="dellist">{% for r in rows[:6] %}<li>{{ r.title }}</li>{% endfor %}{% if current.n > 6 %}<li class="muted">and {{ current.n - 6 }} more</li>{% endif %}</ul>
+    {% if can_report %}<p class="small muted">Want a copy first? Cancel and use <b>Download PDF</b> or <b>Download Excel</b>.</p>{% endif %}
+    {% else %}
+    <p>The project is empty, so only the project itself is deleted.</p>
+    {% endif %}
+  </div>
+  <p class="small err" id="projDelErr" role="alert" hidden></p>
+  <div class="row-actions"><button class="btn" type="button" id="projDelNo">Cancel</button><button class="btn danger solid" type="button" id="projDelYes" data-label="{% if current.n %}Delete project and {{ current.n }} calculation{{ '' if current.n == 1 else 's' }}{% else %}Delete project{% endif %}">{% if current.n %}Delete project and {{ current.n }} calculation{{ '' if current.n == 1 else 's' }}{% else %}Delete project{% endif %}</button></div>
+</dialog>
 <dialog class="projdlg" id="projDlg" aria-labelledby="projDlgH">
   <form id="projDlgForm">
     <h2 id="projDlgH">Project details</h2>
@@ -205,11 +219,16 @@ if ($('projEdit')) {
     try { await send('/api/projects/{{ current.id if current else '' }}', 'PUT', { name: $('projName').value, description: $('projDesc').value }); location.reload(); }
     catch (err) { alert(err.message); }
   });
-  $('projDel').addEventListener('click', async () => {
-    const b = $('projDel'), n = +b.dataset.n;
-    if (!confirm(`Delete the project “${b.dataset.name}”?` + (n ? `\n\nIts ${n} calculation${n > 1 ? 's stay' : ' stays'} saved under “Not in a project”.` : ''))) return;
-    try { await send('/api/projects/{{ current.id if current else '' }}', 'DELETE'); location.href = '/history'; }
-    catch (err) { alert(err.message); }
+  const del = $('projDelDlg');
+  $('projDel').addEventListener('click', () => { $('projDelErr').hidden = true; del.showModal(); $('projDelNo').focus(); });
+  $('projDelNo').addEventListener('click', () => del.close());
+  $('projDelYes').addEventListener('click', async () => {
+    const b = $('projDelYes');
+    b.disabled = true; b.textContent = 'Deleting…';
+    try {
+      const out = await send('/api/projects/{{ current.id if current else '' }}', 'DELETE');
+      location.href = '/history?msg=' + encodeURIComponent(`Deleted the project and ${out.deleted} calculation${out.deleted === 1 ? '' : 's'}.`);
+    } catch (err) { $('projDelErr').textContent = err.message; $('projDelErr').hidden = false; b.disabled = false; b.textContent = b.dataset.label; }
   });
 }
 if ($('moveSel')) {

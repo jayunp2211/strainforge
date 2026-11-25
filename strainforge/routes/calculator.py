@@ -263,8 +263,7 @@ def remove_project(request: Request, pid: str):
         return jresp({"error": "Sign in first"}, 401)
     if not is_uuid(pid):
         return jresp({"error": "Not found"}, 404)
-    db.delete_project(s.user_id, pid)
-    return jresp({"ok": True})
+    return jresp({"ok": True, "deleted": db.delete_project(s.user_id, pid)})
 
 
 @router.post("/api/calculations/move")

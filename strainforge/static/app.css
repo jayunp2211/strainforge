@@ -495,3 +495,11 @@ a:focus-visible, summary:focus-visible, textarea:focus-visible, [tabindex]:not([
 .projdlg form { display: grid; gap: 6px; }
 .projdlg h2 { margin-bottom: 8px; }
 .dlgroup { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.projdlg.warn { border-top: 4px solid var(--bad); }
+.projdlg p { margin: 0 0 10px; }
+.warnhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.warnic { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--bad-soft); color: var(--bad); font-weight: 800; font-family: var(--f-display); }
+.dellist { margin: 0 0 10px; padding-left: 18px; font-size: .88rem; max-height: 160px; overflow: auto; }
+.btn.danger.solid { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn.danger.solid:hover { filter: brightness(1.08); background: var(--bad); color: #fff; }
+.projdlg .row-actions { justify-content: flex-end; }

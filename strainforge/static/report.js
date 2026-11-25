@@ -78,5 +78,9 @@ window.SFReport = {
   batch(ids, format, btn, text) {
     return busy(btn, text || 'Preparing…', async () => save(await fetchFile('/api/reports/batch', { ids, format })));
   },
+  /** Everything in one project: one PDF with a contents page, or one workbook. */
+  project(projectId, format, btn) {
+    return busy(btn, 'Preparing…', async () => save(await fetchFile('/api/reports/project', { project_id: projectId, format })));
+  },
 };
 })();

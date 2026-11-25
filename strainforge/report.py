@@ -20,6 +20,7 @@ HERE = Path(__file__).parent
 FONTS = HERE / "fonts"
 DISCLAIMER = "Results are estimates for tool design. Confirm critical steps with simulation or trials."
 MAX_BATCH = 25
+MAX_PROJECT = 60  # calculations in one project report
 
 # ------------------------------------------------------------------ units (mirrors static/units.js)
 IMP = {
@@ -470,18 +471,26 @@ def _pdf_class():
     return Doc
 
 
+def _new_doc(title: str):
+    Doc = _pdf_class()
+    pdf = Doc(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(False)
+    pdf.set_margins(M, M, M)
+    pdf.add_font("Sans", "", str(FONTS / "DejaVuSans.ttf"))
+    pdf.add_font("Sans", "B", str(FONTS / "DejaVuSans-Bold.ttf"))
+    pdf.set_title(title)
+    pdf.set_author("Strainforge")
+    pdf.set_creator("Strainforge")
+    return pdf
+
+
 class _Writer:
-    def __init__(self, model: dict):
-        Doc = _pdf_class()
-        pdf = Doc(orientation="P", unit="mm", format="A4")
+    def __init__(self, model: dict, pdf=None, running=""):
+        """pdf: an open document to append this report to (a project report); running: its header text."""
+        pdf = pdf or _new_doc(model["title"])
         pdf.model = model
-        pdf.set_auto_page_break(False)
-        pdf.set_margins(M, M, M)
-        pdf.add_font("Sans", "", str(FONTS / "DejaVuSans.ttf"))
-        pdf.add_font("Sans", "B", str(FONTS / "DejaVuSans-Bold.ttf"))
-        pdf.set_title(model["title"])
-        pdf.set_author("Strainforge")
-        pdf.set_creator("Strainforge")
+        self.start = pdf.page_no() + 1  # this report's first page carries the big header, later ones a running line
+        self.running = running
         self.pdf, self.m, self.y = pdf, model, M
         self.units = Units("imperial" if model["units"].startswith("Imperial") else "metric")
 
@@ -511,9 +520,9 @@ class _Writer:
         pdf = self.pdf
         pdf.add_page()
         self.y = M
-        if pdf.page_no() > 1:
+        if pdf.page_no() > self.start:
             self.font(7, color=MUTED)
-            self.text(M, self.y, CW, 4, self.fit(f"Strainforge · {self.m['title']}", CW - 40))
+            self.text(M, self.y, CW, 4, self.fit(f"{self.running or 'Strainforge'} · {self.m['title']}", CW - 40))
             self.text(M, self.y, CW, 4, self.m["date"], align="R")
             self.y += 5
             pdf.set_draw_color(*LINE)
@@ -965,11 +974,119 @@ class _Writer:
         self.paragraphs("Equations", m["equations"])
         if m.get("notes"):
             self.paragraphs("Notes", [p for p in m["notes"].splitlines() if p.strip()], bullet=False, size=7.5)
-        return bytes(self.pdf.output())
+        return self.pdf
+
+    def output(self) -> bytes:
+        return bytes(self.build().output())
 
 
 def build_pdf(model: dict) -> bytes:
-    return _Writer(model).build()
+    return _Writer(model).output()
+
+
+STATE_WORD = {"ok": "OK", "warn": "Warning", "bad": "Fails"}
+
+
+def build_project_pdf(project: dict, models: list[dict]) -> bytes:
+    """One PDF for a project: a cover page listing every calculation, then each report from a new page."""
+    pdf = _new_doc(project["title"])
+    w = _Writer({"title": project["title"], "date": project["date"], "units": models[0]["units"]}, pdf)
+    w.new_page()
+    y = M
+    pdf.set_fill_color(*ACCENT)
+    pdf.rect(M, y, CW, 1.2, style="F")
+    y += 3.5
+    w.font(8, True, ACCENT)
+    w.text(M, y, CW, 4, "STRAINFORGE")
+    w.font(7.5, color=MUTED)
+    w.text(M, y, CW, 4, f"Project report · {project['date']}", align="R")
+    y += 7
+    w.font(18, True)
+    for ln in w.lines(project["title"], CW)[:2] or [project["title"]]:
+        pdf.set_font("Sans", "B", 18)
+        w.text(M, y, CW, 8, ln)
+        y += 8
+    if project.get("description"):
+        w.font(9, color=MUTED)
+        pdf.set_font("Sans", "", 9)
+        for ln in pdf.multi_cell(CW, 4.2, project["description"], dry_run=True, output="LINES")[:4]:
+            w.text(M, y, CW, 4.5, ln)
+            y += 4.5
+    y += 3
+    meta = [(k, v) for k, v in project["meta"] if v] + [("Calculations", str(len(models))), ("Units", models[0]["units"])]
+    cw = CW / len(meta)
+    for i, (k, v) in enumerate(meta):
+        x = M + i * cw
+        w.font(6.3, True, MUTED)
+        w.text(x, y, cw - 3, 3.5, k.upper())
+        w.font(8.5)
+        w.text(x, y + 3.6, cw - 3, 4.5, w.fit(v, cw - 3))
+    y += 12
+    # status summary
+    counts = {k: sum(1 for m in models if m["status"]["state"] == k) for k in ("ok", "warn", "bad")}
+    chips = [(k, n) for k, n in counts.items() if n]
+    x = M
+    for k, n in chips:
+        fg, bg, label = STATE[k]
+        txt = f"{n} {'pass' if k == 'ok' else 'with warnings' if k == 'warn' else 'failing a check'}"
+        pdf.set_font("Sans", "B", 8)
+        tw = pdf.get_string_width(txt) + 9
+        pdf.set_fill_color(*bg)
+        pdf.rect(x, y, tw, 6, style="F", round_corners=True, corner_radius=1.2)
+        pdf.set_fill_color(*fg)
+        pdf.ellipse(x + 2.5, y + 1.9, 2.2, 2.2, style="F")
+        w.font(8, True, fg)
+        w.text(x + 6, y + 1, tw - 6, 4, txt)
+        x += tw + 3
+    y += 11
+    # contents table
+    cols = [("#", 7, "L"), ("Calculation", 58, "L"), ("Calculator", 46, "L"), ("Key result", 38, "R"), ("Status", 17, "L"),
+            ("Page", 20, "R")]
+    w.y = y
+
+    def head():
+        pdf.set_fill_color(*SOFT)
+        pdf.rect(M, w.y, CW, 6, style="F")
+        x = M
+        for name, cwid, al in cols:
+            w.font(6.8, True, MUTED)
+            w.text(x + 1.5, w.y + 1, cwid - 3, 4, name, align=al)
+            x += cwid
+        w.y += 6.5
+
+    head()
+    rows_y = []
+    for n, m in enumerate(models, start=1):
+        if w.need(7.5):
+            head()
+        rows_y.append((pdf.page_no(), w.y))
+        x = M
+        fg, _, _ = STATE.get(m["status"]["state"], STATE["na"])
+        vals = [str(n), m["title"], m["subtitle"], m.get("headline") or "—", STATE_WORD.get(m["status"]["state"], "—"), ""]
+        for (name, cwid, al), v in zip(cols, vals):
+            bold = name in ("Calculation", "Status")
+            w.font(7.6, bold, fg if name == "Status" else INK if name != "Calculator" else MUTED)
+            w.text(x + 1.5, w.y + 1.2, cwid - 3, 4, w.fit(v, cwid - 3), align=al)
+            x += cwid
+        pdf.set_draw_color(*LINE)
+        pdf.set_line_width(0.2)
+        pdf.line(M, w.y + 7, PAGE_W - M, w.y + 7)
+        w.y += 7.5
+    links, first_pages = [], []
+    for m in models:
+        first_pages.append(pdf.page_no() + 1)
+        _Writer(m, pdf, running=project["title"]).build()
+        links.append(pdf.add_link(page=first_pages[-1]))
+    # page numbers and links in the contents table
+    cur = pdf.page
+    for (pg, yy), link, first in zip(rows_y, links, first_pages):
+        pdf.page = pg
+        x = M + sum(c[1] for c in cols[:-1])
+        w.font(7.6, True, ACCENT)
+        w.text(x + 1.5, yy + 1.2, cols[-1][1] - 3, 4, str(first or ""), align="R")
+        pdf.link(M, yy, CW, 7, link)
+    pdf.page = cur
+    return bytes(pdf.output())
 
 
 # ------------------------------------------------------------------ Excel
@@ -1167,13 +1284,13 @@ def _sheet_name(title: str, used: set) -> str:
     return name
 
 
-def build_xlsx(models: list[dict]) -> bytes:
+def build_xlsx(models: list[dict], project: dict | None = None) -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     wb = Workbook()
     used: set = set()
-    if len(models) == 1:
+    if len(models) == 1 and not project:
         ws = wb.active
         ws.title = _sheet_name(models[0]["title"], used)
         _sheet(ws, models[0])
@@ -1187,8 +1304,23 @@ def build_xlsx(models: list[dict]) -> bytes:
         for col in range(1, 8):
             ov.cell(1, col).fill = PatternFill("solid", fgColor=X_ACCENT)
         ov.cell(1, 1, "STRAINFORGE").font = Font(bold=True, color="FFFFFF", size=9)
-        ov.cell(2, 1, f"{len(models)} reports").font = Font(bold=True, size=16, color=X_INK)
-        ov.cell(3, 1, f"{models[0]['date']} · {models[0]['units']}").font = Font(color=X_MUTED)
+        if project:
+            ov.title = "Project"
+            used.add("project")
+            ov.cell(1, 7, "Project report").font = Font(color="FFFFFF", size=9)
+            ov.cell(1, 7).alignment = Alignment(horizontal="right")
+            c = ov.cell(2, 1, _safe(project["title"]))
+            c.data_type = "s"
+            c.font = Font(bold=True, size=16, color=X_INK)
+            sub_line = " · ".join(v for _, v in project["meta"] if v)
+            ov.cell(3, 1, f"{len(models)} calculation{'s' if len(models) != 1 else ''} · {models[0]['date']} · {sub_line} · {models[0]['units']}").font = Font(color=X_MUTED)
+            if project.get("description"):
+                d = ov.cell(4, 1, project["description"])
+                d.data_type = "s"
+                d.font = Font(italic=True, color=X_MUTED)
+        else:
+            ov.cell(2, 1, f"{len(models)} reports").font = Font(bold=True, size=16, color=X_INK)
+            ov.cell(3, 1, f"{models[0]['date']} · {models[0]['units']}").font = Font(color=X_MUTED)
         heads = ["#", "Name", "Type", "Key result", "Status", "Saved by", "Last change"]
         for i, h in enumerate(heads, start=1):
             c = ov.cell(5, i, h)

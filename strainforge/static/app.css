@@ -494,3 +494,4 @@ a:focus-visible, summary:focus-visible, textarea:focus-visible, [tabindex]:not([
 .projdlg::backdrop { background: rgba(8,14,20,.55); }
 .projdlg form { display: grid; gap: 6px; }
 .projdlg h2 { margin-bottom: 8px; }
+.dlgroup { display: inline-flex; gap: 8px; flex-wrap: wrap; }

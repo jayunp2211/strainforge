@@ -2,6 +2,11 @@
 {% block title %}{% if saved %}{{ saved.title }}{% else %}{{ t.title }} calculator{% endif %} · Strainforge{% endblock %}
 {% block description %}{{ t.summary }}{% endblock %}
 {% block robots %}{% if saved %}noindex{% else %}index{% endif %}{% endblock %}
+{% block jsonld %}<script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "WebApplication",
+  "name": t.title ~ " calculator", "url": config.SITE_URL ~ "/calculator/" ~ t.slug, "description": t.summary,
+  "applicationCategory": "EngineeringApplication", "operatingSystem": "Any",
+  "publisher": {"@type": "Organization", "name": "Strainforge", "url": config.SITE_URL ~ "/"},
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}} | tojson }}</script>{% endblock %}
 {% block head %}<style>{{ svg_css|safe }}</style>{% endblock %}
 {% block body %}
 {{ svg_defs|safe }}

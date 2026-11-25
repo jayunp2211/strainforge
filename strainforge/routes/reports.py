@@ -66,20 +66,7 @@ async def batch_report(request: Request):
     rows = db.get_calcs(s.user_id, s.ws["id"], ids)
     if not rows:
         return jresp({"error": "Those results don't exist or aren't in this workspace"}, 404)
-    U = report.Units(body.get("units"))
-    date = report.today_label(body.get("date"))
-    models = []
-    for row in rows:
-        try:
-            m = report.model_from_saved(row, U)
-        except (KeyError, ValueError, TypeError, AttributeError, IndexError):
-            continue
-        report.finish(m, row["title"], row.get("notes") or "",
-                      [("Saved by", row.get("created_by_name") or ""), ("Last change", _changed(row.get("updated_at"))),
-                       ("Workspace", s.ws["name"])], date)
-        m["saved_by"] = row.get("created_by_name") or ""
-        m["changed"] = _changed(row.get("updated_at"))
-        models.append(m)
+    models = _saved_models(rows, s, report.Units(body.get("units")), report.today_label(body.get("date")))
     if not models:
         return jresp({"error": "Could not build those reports"}, 400)
     if fmt == "xlsx":
@@ -89,3 +76,51 @@ async def batch_report(request: Request):
     if len(files) == 1:
         return _file(files[0][1], files[0][0])
     return _file(report.build_zip(files), report.filename(f"Strainforge {len(files)} reports", "zip"))
+
+
+@router.post("/api/reports/project")
+async def project_report(request: Request):
+    """Everything in one project: one PDF (contents page, then each calculation) or one workbook."""
+    s = load_session(request)
+    if not can_report(s):
+        return jresp({"error": NO_PLAN}, 403)
+    body = await read_json(request)
+    fmt, pid = body.get("format"), str(body.get("project_id") or "")
+    if fmt not in ("pdf", "xlsx") or not is_uuid(pid):
+        return jresp({"error": "Choose a project and a format"}, 400)
+    proj = db.get_project(s.user_id, pid)
+    if not proj:
+        return jresp({"error": "That project doesn't exist or isn't shared with you"}, 404)
+    rows = db.list_calcs(s.user_id, str(proj["workspace_id"]), project=pid)
+    if not rows:
+        return jresp({"error": "This project has no saved calculations yet"}, 400)
+    if len(rows) > report.MAX_PROJECT:
+        return jresp({"error": f"A project report covers up to {report.MAX_PROJECT} calculations; this one has {len(rows)}. "
+                               "Select some on the page and use Download PDF or Download Excel there."}, 400)
+    rows.sort(key=lambda r: r["created_at"])  # in the order they were added to the project
+    ws_name = next((w["name"] for w in s.workspaces if w["id"] == str(proj["workspace_id"])), "")
+    date = report.today_label(body.get("date"))
+    models = _saved_models(rows, s, report.Units(body.get("units")), date, ws_name)
+    if not models:
+        return jresp({"error": "Could not build the project report"}, 400)
+    info = {"title": proj["name"], "description": proj["description"], "date": date,
+            "meta": [("Workspace", ws_name), ("Started by", proj.get("created_by_name") or ""), ("Prepared by", s.name)]}
+    if fmt == "xlsx":
+        return _file(report.build_xlsx(models, info), report.filename(proj["name"], "xlsx"))
+    return _file(report.build_project_pdf(info, models), report.filename(proj["name"], "pdf"))
+
+
+def _saved_models(rows, s, U, date, ws_name=None):
+    models = []
+    for row in rows:
+        try:
+            m = report.model_from_saved(row, U)
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError):
+            continue
+        report.finish(m, row["title"], row.get("notes") or "",
+                      [("Saved by", row.get("created_by_name") or ""), ("Last change", _changed(row.get("updated_at"))),
+                       ("Workspace", ws_name or s.ws["name"])], date)
+        m["saved_by"] = row.get("created_by_name") or ""
+        m["changed"] = _changed(row.get("updated_at"))
+        models.append(m)
+    return models

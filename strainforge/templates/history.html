@@ -9,6 +9,14 @@
     <p class="sub">{% if current %}{% if current.description %}{{ current.description }} · {% endif %}{{ current.n }} calculation{{ '' if current.n == 1 else 's' }} · started by {{ current.created_by_name or 'someone' }}{% elif project == 'none' %}Saved calculations that aren't filed under a project yet. Select some and use <b>Move to project</b>.{% elif s.ws and s.ws.kind == 'team' %}Every calculation saved by your team. Anyone in the team can open and update them; each save keeps a version.{% else %}Your saved calculations. Open one to keep working on it.{% endif %}</p>
   </div>
   <div class="actions">
+    {% if current and current.n and can_report %}
+    <span class="dlgroup" role="group" aria-label="Download the project">
+      <button class="btn" type="button" id="projPdf" data-label="Download PDF" title="One PDF: a contents page, then every calculation in the project">Download PDF</button>
+      <button class="btn" type="button" id="projXlsx" data-label="Download Excel" title="One workbook: a project sheet, then a sheet per calculation">Download Excel</button>
+    </span>
+    {% elif current and current.n %}
+    <a class="btn" href="/pricing" title="PDF and Excel reports come with the Personal and Team plans">Download PDF / Excel</a>
+    {% endif %}
     {% if can_edit_project %}
     <button class="btn" type="button" id="projEdit">Rename</button>
     <button class="btn danger" type="button" id="projDel" data-name="{{ current.name }}" data-n="{{ current.n }}">Delete project</button>
@@ -183,6 +191,11 @@ nf.addEventListener('submit', async e => {
   try { const p = await send('/api/projects', 'POST', { name: $('projNewName').value }); location.href = '/history?project=' + p.id; }
   catch (err) { alert(err.message); }
 });
+if ($('projPdf')) {
+  const pid = '{{ current.id if current else '' }}';
+  $('projPdf').addEventListener('click', () => window.SFReport.project(pid, 'pdf', $('projPdf')));
+  $('projXlsx').addEventListener('click', () => window.SFReport.project(pid, 'xlsx', $('projXlsx')));
+}
 if ($('projEdit')) {
   const dlg = $('projDlg');
   $('projEdit').addEventListener('click', () => dlg.showModal());

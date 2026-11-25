@@ -89,3 +89,18 @@ def test_source_is_validated():
     assert m["kind"] == "Disc spring calculator"
     assert report.today_label("<script>") != "<script>"
     assert report.today_label("24 November 2026") == "24 November 2026"
+
+
+def test_project_report_pdf_and_workbook():
+    models = [_sleeve(title="Insert"), _calc(), _sleeve(title="Second insert")]
+    info = {"title": "=M10 flange bolt", "description": "Press line 4", "date": "1 May 2026",
+            "meta": [("Workspace", "Acme"), ("Started by", "A"), ("Prepared by", "B")]}
+    pdf = report.build_project_pdf(info, models)
+    assert pdf[:5] == b"%PDF-"
+    assert len(re.findall(rb"/Type /Page\b", pdf)) >= 1 + len(models)  # a contents page, then each calculation
+    data = report.build_xlsx(models, info)
+    wb = load_workbook(io.BytesIO(data))
+    assert wb.sheetnames[0] == "Project" and len(wb.sheetnames) == 1 + len(models)
+    assert wb["Project"]["A2"].data_type == "s"  # a name starting with = stays text
+    one = load_workbook(io.BytesIO(report.build_xlsx(models[:1], info)))
+    assert one.sheetnames[0] == "Project"  # a one-calculation project still gets its project sheet

@@ -104,3 +104,12 @@ def test_project_report_pdf_and_workbook():
     assert wb["Project"]["A2"].data_type == "s"  # a name starting with = stays text
     one = load_workbook(io.BytesIO(report.build_xlsx(models[:1], info)))
     assert one.sheetnames[0] == "Project"  # a one-calculation project still gets its project sheet
+
+
+def test_excel_has_the_drawings_as_pictures():
+    data = report.build_xlsx([_sleeve(), _calc()])
+    wb = load_workbook(io.BytesIO(data))
+    sheets = [ws for ws in wb.worksheets if ws.title != "Overview"]
+    assert [len(ws._images) for ws in sheets] == [2, 2]
+    png = report.svg_png(_sleeve()["figures"][0]["svg"], report.Units(), 400)
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"

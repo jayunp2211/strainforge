@@ -264,6 +264,12 @@ tr.picked td { background: var(--accent-soft); }
 .price { font-family: var(--f-display); font-size: 2.1rem; font-weight: 700; }
 .price small { font-size: .9rem; color: var(--muted); font-weight: 500; font-family: var(--f-body); }
 .plan ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+table.compare th:not(:first-child), table.compare td:not(:first-child) { text-align: center; width: 20%; }
+table.compare td:not(:first-child) { color: var(--ink-2); }
+.faq details { border-top: 1px solid var(--line); padding: 10px 0; }
+.faq details:first-of-type { border-top: 0; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq p { margin: 8px 0 0; color: var(--ink-2); max-width: 70ch; }
 .notice { border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--ink); border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; }
 
 /* save bar on the calculator */

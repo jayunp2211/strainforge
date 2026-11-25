@@ -653,7 +653,7 @@ def versions(uid, cid):
 # ------------------------------------------------------------------ projects
 # A project groups saved results from any calculator inside one workspace. Every member can
 # create projects and file results in them; renaming and deleting is for the creator or an admin.
-# Deleting a project keeps its results (they move to "not in a project").
+# Deleting a project deletes the results saved in it as well.
 
 PROJECT_COLS = ("p.id, p.workspace_id, p.name, p.description, p.created_by, p.created_at, "
                 "greatest(p.updated_at, coalesce(max(c.updated_at), p.updated_at)) as updated_at, count(c.id) as n, "
@@ -741,8 +741,21 @@ def update_project(uid, pid, name, description=""):
 
 
 def delete_project(uid, pid):
-    _need_project_owner(uid, pid)
-    q("delete from projects where id = %s", (pid,))
+    """Delete a project together with every calculation saved in it (and their version history)."""
+    row = _need_project_owner(uid, pid)
+    r = _need_member(uid, row["workspace_id"])
+    with tx() as cur:
+        if r["role"] != "admin":
+            cur.execute("select count(*) as n from calculations where project_id = %s and created_by is distinct from %s",
+                        (pid, uid))
+            others = cur.fetchone()["n"]
+            if others:
+                raise Denied(f"{others} calculation{'s' if others != 1 else ''} in this project "
+                             f"{'were' if others != 1 else 'was'} saved by teammates, so only an admin can delete the project.")
+        cur.execute("delete from calculations where project_id = %s returning id", (pid,))
+        n = len(cur.fetchall())
+        cur.execute("delete from projects where id = %s", (pid,))
+    return n
 
 
 def move_calcs(uid, ws_id, ids, want):

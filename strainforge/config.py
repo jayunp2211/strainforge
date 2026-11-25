@@ -8,6 +8,14 @@ DATABASE_URL = (os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_POSTG
 ASSET_VERSION = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or os.environ.get("VERCEL_DEPLOYMENT_ID") or "dev")[:12]
 
 SITE_URL = os.environ.get("SITE_URL", "https://strainforge.vercel.app").rstrip("/")
+
+# Search engines. Only the production deploy may be indexed: Vercel preview deploys (VERCEL_ENV=preview)
+# answer "noindex" so they never compete with the real site in search results.
+IS_PRODUCTION = os.environ.get("VERCEL_ENV", "production") == "production"
+# Ownership codes from Google Search Console / Bing Webmaster Tools ("HTML tag" method): paste only the
+# content="..." value into these Vercel environment variables, then redeploy.
+GOOGLE_SITE_VERIFICATION = os.environ.get("GOOGLE_SITE_VERIFICATION", "").strip()
+BING_SITE_VERIFICATION = os.environ.get("BING_SITE_VERIFICATION", "").strip()
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
 
 # Pricing (billing is not switched on yet; every workspace runs as early access).

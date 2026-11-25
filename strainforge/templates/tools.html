@@ -1,10 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Cold forming tools and calculators · Strainforge{% endblock %}
-{% block description %}Free calculators for cold forming and cold heading work. No account needed.{% endblock %}
-{% block robots %}index{% endblock %}
+{% block title %}Strainforge · Free cold forming and cold heading calculators{% endblock %}
+{% block description %}Strainforge: free online calculators for cold forming and cold heading. Forming load and energy, upsetting, extrusion, slotted sleeve dies and disc springs. No account needed.{% endblock %}
+{% block robots %}{% if pq %}noindex{% else %}index{% endif %}{% endblock %}
+{% block jsonld %}<script type="application/ld+json">{{ {"@context": "https://schema.org", "@graph": [
+  {"@type": "WebSite", "@id": config.SITE_URL ~ "/#website", "name": "Strainforge", "url": config.SITE_URL ~ "/",
+   "description": "Free cold forming and cold heading calculators."},
+  {"@type": "Organization", "@id": config.SITE_URL ~ "/#org", "name": "Strainforge", "url": config.SITE_URL ~ "/"}]} | tojson }}</script>{% endblock %}
 {% block body %}
 <div class="pagehead">
-  <div><h1>Tools</h1><p class="sub">{% if pq %}Pick a calculator. What you save goes straight into the project you came from.{% else %}Calculators for cold forming work. All free to use, no account needed.{% endif %}</p></div>
+  <div><h1>Cold forming calculators</h1><p class="sub">{% if pq %}Pick a calculator. What you save goes straight into the project you came from.{% else %}Strainforge calculators for cold forming and cold heading work. All free to use, no account needed.{% endif %}</p></div>
   {% if s.is_site_admin %}<div class="actions"><a class="btn primary" href="/admin/tools/new">New calculator</a></div>{% endif %}
 </div>
 <div class="toolgrid">
@@ -31,6 +35,16 @@
   </a>
   {% endfor %}
 </div>
+{% if not pq and not s.is_site_admin %}
+<section class="panel" style="margin-top:24px" aria-labelledby="aboutH">
+  <h2 id="aboutH">About Strainforge</h2>
+  <p>Strainforge is a free set of engineering calculators for cold forming and cold heading of fasteners and formed parts.
+  The forming load and energy calculator covers cut off, upsetting, forward and backward extrusion, piercing and trimming,
+  with flow curves for common cold heading steels and non-ferrous wires. The tool design calculators size slotted sleeve
+  die assemblies (shrink fit, contact pressure, press-in force) and disc spring stacks (load, stress and fatigue life).
+  Results work in metric or imperial units, and you can save, share and export them with a free account.</p>
+</section>
+{% endif %}
 {% if s.is_site_admin and not tools %}
 <p class="sub small" style="margin-top:16px">No calculators of your own are live yet. Build them from your <a href="/#tools">dashboard</a>.</p>
 {% endif %}

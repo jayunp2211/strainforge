@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{% if saved %}{{ saved.title }} · Strainforge{% else %}Cold forming force calculator · Strainforge{% endif %}{% endblock %}
 {% block robots %}{% if saved %}noindex{% else %}index{% endif %}{% endblock %}
+{% block jsonld %}<script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "WebApplication",
+  "name": "Cold forming force calculator", "url": config.SITE_URL ~ "/calculator",
+  "description": "Free cold forming calculator for forming load, energy, deformation grade and tooling checks: cut off, upsetting, extrusion, piercing and trimming.",
+  "applicationCategory": "EngineeringApplication", "operatingSystem": "Any",
+  "publisher": {"@type": "Organization", "name": "Strainforge", "url": config.SITE_URL ~ "/"},
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}} | tojson }}</script>{% endblock %}
 {% block head %}<style>{{ svg_css|safe }}</style>
-{% if not saved %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Strainforge","url":"{{ config.SITE_URL }}/","applicationCategory":"EngineeringApplication","operatingSystem":"Any","description":"Free cold forming calculator for forging loads, energy and tool checks.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>{% endif %}
 {% endblock %}
 {% block body %}
 {{ svg_defs|safe }}

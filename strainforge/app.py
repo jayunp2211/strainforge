@@ -40,6 +40,8 @@ async def headers_and_csrf(request: Request, call_next):
     resp.headers.setdefault("X-Frame-Options", "DENY")
     resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
     resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if not config.IS_PRODUCTION:
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow"
     if request.url.path.startswith("/static/"):
         # Versioned URLs (?v=<deploy>) never change, so they can be cached for a year.
         long = request.query_params.get("v") == config.ASSET_VERSION and config.ASSET_VERSION != "dev"
@@ -87,6 +89,8 @@ PRIVATE = ("/admin", "/account", "/history", "/team", "/workspace", "/invite", "
 
 @app.get("/robots.txt", response_class=PlainTextResponse)
 def robots():
+    if not config.IS_PRODUCTION:
+        return "User-agent: *\nDisallow: /\n"
     lines = ["User-agent: *", *[f"Disallow: {p}" for p in PRIVATE], "", f"Sitemap: {config.SITE_URL}/sitemap.xml", ""]
     return "\n".join(lines)
 

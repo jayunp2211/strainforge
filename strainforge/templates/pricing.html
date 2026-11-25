@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Pricing · Strainforge{% endblock %}
-{% block description %}Every Strainforge calculator is free. Personal and Team plans add saved history, PDF and Excel reports, shared team calculations and custom materials.{% endblock %}
+{% block description %}Every Strainforge calculator is free. Personal and Team plans add saved results, projects, PDF and Excel reports, shared team calculations and custom materials.{% endblock %}
 {% block robots %}index{% endblock %}
 {% block body %}
-<div class="pagehead"><div><h1>Pricing</h1><p class="sub">Every calculator is free. Plans add saved history, reports, teams and your own materials.</p></div></div>
+<div class="pagehead"><div><h1>Pricing</h1><p class="sub">Every calculator is free. Plans add saved results, projects, reports, teams and your own materials.</p></div></div>
 <div class="notice"><b>Early access:</b> billing isn't switched on yet, so every paid feature is free for now. We'll let you know before anything is charged.</div>
 <div class="plans">
   <div class="panel plan">
@@ -13,8 +13,11 @@
       <li>Forming load &amp; energy calculator: all 10 processes and 16 product shapes</li>
       <li>Die assembly with slotted sleeve and disc spring tools</li>
       <li>Load, energy, deformation grade and tooling checks</li>
+      <li>Drawings to your dimensions and a 3D view of the part</li>
       <li>Sensitivity chart and every intermediate step</li>
+      <li>Metric or imperial units</li>
       <li>Standard material library</li>
+      <li>No account needed</li>
     </ul>
     <a class="btn" href="/tools" style="margin-top:auto;justify-content:center">Open the tools</a>
   </div>
@@ -24,8 +27,11 @@
     <p class="small muted" style="margin:0">or $219 / year, one month free</p>
     <ul>
       <li>Everything in Free</li>
-      <li>Save results from every calculator, with search</li>
-      <li>PDF and Excel reports to attach to tool drawings</li>
+      <li>Save results from every calculator, with search and filters</li>
+      <li>Projects: file calculations by job or part and open them together</li>
+      <li>PDF and Excel reports with drawings, plus print</li>
+      <li>Download a whole project as one PDF or one Excel workbook</li>
+      <li>Download, move or delete several results at once</li>
       <li>Version history on every calculation</li>
       <li>Add and remove your own materials</li>
     </ul>
@@ -37,12 +43,41 @@
     <p class="small muted" style="margin:0">or $549 / year, one month free</p>
     <ul>
       <li>Everything in Personal</li>
-      <li>Shared team history: everyone sees every calculation</li>
+      <li>Shared projects and history: everyone sees every calculation</li>
       <li>Several engineers can work on the same calculation, with conflict warnings and versions</li>
-      <li>Admin role to manage people and the team's material list</li>
+      <li>Invite engineers with a link and choose who is an admin</li>
+      <li>Admins manage people, the team's material list and password resets</li>
     </ul>
     <p class="small muted" style="margin:0">Includes 3 engineers, the admin among them. Each extra engineer is $14.99 / month or $164 / year. Example: a team of 5 is $49.99 + 2 × $14.99 = $79.97 per month, or $877 per year.</p>
     <a class="btn primary" href="/signup" style="margin-top:auto;justify-content:center">Create a team</a>
   </div>
+</div>
+
+<div class="panel" style="margin-top:18px">
+  <div class="phead"><h2>Compare plans</h2></div>
+  <div class="tblwrap"><table class="compare">
+    <thead><tr><th></th><th>Free</th><th>Personal</th><th>Team</th></tr></thead>
+    <tbody>
+      <tr><td>All calculators, drawings, checks and steps</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Metric or imperial units</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Standard material library</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Save results, search and version history</td><td>—</td><td>✓</td><td>✓, shared</td></tr>
+      <tr><td>Projects</td><td>—</td><td>✓</td><td>✓, shared</td></tr>
+      <tr><td>PDF and Excel reports, print</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Project and multi-result downloads</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Your own materials</td><td>—</td><td>✓</td><td>✓, shared with the team</td></tr>
+      <tr><td>Engineers</td><td>—</td><td>1</td><td>3 included, then $14.99 / month each</td></tr>
+      <tr><td>Invite links, admin role, password resets</td><td>—</td><td>—</td><td>✓</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="panel faq" style="margin-top:18px">
+  <div class="phead"><h2>Questions</h2></div>
+  <details><summary>Do I need an account to use the calculators?</summary><p>No. Every calculator and tool works without signing in. An account is only needed to save results, file them in projects, download reports or add your own materials.</p></details>
+  <details><summary>What does early access mean?</summary><p>Billing isn't switched on yet, so every Personal and Team feature is free for now. We'll let you know before anything is charged.</p></details>
+  <details><summary>How is a team priced?</summary><p>$49.99 a month covers 3 engineers, the admin among them. Each extra engineer is $14.99 a month. Paying yearly gives you one month free: $549 a year for the team, plus $164 a year for each extra engineer.</p></details>
+  <details><summary>What's in a report?</summary><p>The drawings, key results, design checks, every input, the design values, each calculation step and the equations used, in the units you have chosen. The PDF fits on one or two pages; the Excel file keeps the numbers as numbers so you can work with them.</p></details>
+  <details><summary>What is a project?</summary><p>A folder for calculations that belong together, such as one part or one customer job. You can file calculations from any calculator in it, open them from one place and download the whole project as one PDF or one Excel workbook. In a team, everyone sees the same projects.</p></details>
 </div>
 {% endblock %}

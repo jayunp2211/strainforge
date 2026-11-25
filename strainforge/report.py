@@ -435,6 +435,16 @@ def svg_for_pdf(svg: str, U: Units) -> str:
     return svg
 
 
+def svg_png(svg: str, U: "Units", width_px: int) -> bytes:
+    """A drawing as a PNG (for Excel, which can't show the site's SVG drawings)."""
+    import resvg_py
+
+    src = svg_for_pdf(svg, U).replace('font-family="Sans"', 'font-family="DejaVu Sans"')
+    return bytes(resvg_py.svg_to_bytes(svg_string=src, width=int(width_px), background="#f4f6f8", skip_system_fonts=True,
+                                       font_files=[str(FONTS / "DejaVuSans.ttf"), str(FONTS / "DejaVuSans-Bold.ttf")],
+                                       font_family="DejaVu Sans", sans_serif_family="DejaVu Sans"))
+
+
 def _viewbox(svg: str):
     m = re.search(r'viewBox="\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)', svg)
     return (float(m.group(1)), float(m.group(2))) if m else (440.0, 360.0)
@@ -1154,6 +1164,7 @@ def _sheet(ws, model: dict):
         ws.cell(r, col).fill = fill(bg)
     put(r, 2, st["text"], font=Font(bold=True, color=fg))
     r += 2
+    r = _drawings(ws, model, r, widths)
 
     def title(text):
         nonlocal r
@@ -1272,6 +1283,49 @@ def _sheet(ws, model: dict):
     ws.page_margins.left = ws.page_margins.right = 0.4
     ws.oddFooter.left.text = "Strainforge · &[Tab]"
     ws.oddFooter.right.text = "Page &P of &N"
+
+
+def _drawings(ws, model: dict, r: int, widths: list) -> int:
+    """The drawings side by side under the header, as pictures (each with its caption below)."""
+    from openpyxl.drawing.image import Image
+    from openpyxl.styles import Border, Font, Side
+
+    figs = (model.get("figures") or [])[:3]
+    if not figs:
+        return r
+    U = Units("imperial" if str(model.get("units", "")).startswith("Imperial") else "metric")
+    col_px = [int(w * 7 + 5) for w in widths]
+    starts = [sum(col_px[:i]) for i in range(len(col_px))]
+    total, gap, height = sum(col_px), 16, 230
+    slot = (total - gap * (len(figs) - 1)) / len(figs)
+    placed = []
+    x = 0
+    for f in figs:
+        vw, vh = _viewbox(f["svg"])
+        w = min(slot, height * vw / vh, 520)
+        h = w * vh / vw
+        col = next((i for i, st in enumerate(starts) if st >= x - 1), len(starts) - 1)
+        try:
+            img = Image(io.BytesIO(svg_png(f["svg"], U, w * 2)))
+        except Exception:  # a drawing that can't be drawn should not cost the whole report
+            x += slot + gap
+            continue
+        img.width, img.height = int(w), int(h)
+        img.anchor = f"{chr(65 + col)}{r + 1}"
+        ws.add_image(img)
+        placed.append((col, h, f.get("caption", "")))
+        x = starts[col] + w + gap
+    if not placed:
+        return r
+    ws.cell(r, 1, "Drawings").font = Font(bold=True, size=12, color=X_ACCENT)
+    for col in range(1, X_COLS + 1):
+        ws.cell(r, col).border = Border(bottom=Side(style="medium", color=X_ACCENT))
+    ws.row_dimensions[r].height = 20
+    rows = int(max(h for _, h, _ in placed) / 20) + 2
+    for col, _, cap in placed:
+        c = ws.cell(r + rows, col + 1, cap)
+        c.font = Font(size=9, color=X_MUTED, italic=True)
+    return r + rows + 2
 
 
 def _sheet_name(title: str, used: set) -> str:
